@@ -103,6 +103,14 @@ cache:
     DOCKER_BUILDKIT: 1
   before_script:
     - echo "Setting up Docker environment..."
+    - echo "Installing Docker CLI..."
+    - apt-get update -qq && apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
+    - curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    - apt-get update -qq && apt-get install -y -qq docker-ce-cli
+    - echo "Docker CLI installed successfully"
+    - docker --version
+    - echo "Logging into GHCR..."
     - echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
