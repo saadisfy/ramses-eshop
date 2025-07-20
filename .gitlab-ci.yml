@@ -100,6 +100,8 @@ cache:
   image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - echo "Generating $SERVICE_NAME container image..."
+    - echo "Restoring packages for $PROJECT_PATH..."
+    - dotnet restore $PROJECT_PATH
     - |
       dotnet publish $PROJECT_PATH \
         --configuration $BUILD_CONFIGURATION \
