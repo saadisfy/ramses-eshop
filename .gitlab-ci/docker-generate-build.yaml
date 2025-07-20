@@ -1,0 +1,71 @@
+# Docker generate build stage jobs
+# This file contains all Docker build jobs that use .NET's built-in container generation
+# instead of Dockerfiles
+
+# Individual service container generation jobs
+# TESTING MODE: Only Catalog.API is active for step-by-step testing
+# docker-generate-apphost:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "apphost"
+#     PROJECT_PATH: "src/eShop.AppHost/eShop.AppHost.csproj"
+
+# docker-generate-basket-api:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "basket-api"
+#     PROJECT_PATH: "src/Basket.API/Basket.API.csproj"
+
+docker-generate-catalog-api:
+  extends: .generate-dotnet-container
+  variables:
+    SERVICE_NAME: "catalog-api"
+    PROJECT_PATH: "src/Catalog.API/Catalog.API.csproj"
+
+# docker-generate-identity-api:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "identity-api"
+#     PROJECT_PATH: "src/Identity.API/Identity.API.csproj"
+
+# docker-generate-ordering-api:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "ordering-api"
+#     PROJECT_PATH: "src/Ordering.API/Ordering.API.csproj"
+
+# docker-generate-order-processor:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "order-processor"
+#     PROJECT_PATH: "src/OrderProcessor/OrderProcessor.csproj"
+
+# docker-generate-payment-processor:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "payment-processor"
+#     PROJECT_PATH: "src/PaymentProcessor/PaymentProcessor.csproj"
+
+# docker-generate-webhooks-api:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "webhooks-api"
+#     PROJECT_PATH: "src/Webhooks.API/Webhooks.API.csproj"
+
+# docker-generate-webapp:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "webapp"
+#     PROJECT_PATH: "src/WebApp/WebApp.csproj"
+
+# docker-generate-webhook-client:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "webhook-client"
+#     PROJECT_PATH: "src/WebhookClient/WebhookClient.csproj"
+
+# docker-generate-mobile-bff:
+#   extends: .generate-dotnet-container
+#   variables:
+#     SERVICE_NAME: "mobile-bff"
+#     PROJECT_PATH: "src/Mobile.Bff.Shopping/Mobile.Bff.Shopping.csproj" 

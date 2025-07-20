@@ -1,0 +1,69 @@
+# Docker build stage jobs (Dockerfile-based - COMMENTED OUT)
+# This file contains all Docker build jobs that extend the .build-dotnet-service template
+
+# Individual service build jobs (COMMENTED OUT - Using .NET container generation instead)
+# docker-build-apphost:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "apphost"
+#     DOCKERFILE_PATH: "src/eShop.AppHost/Dockerfile"
+
+# docker-build-basket-api:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "basket-api"
+#     DOCKERFILE_PATH: "src/Basket.API/Dockerfile"
+
+# docker-build-catalog-api:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "catalog-api"
+#     DOCKERFILE_PATH: "src/Catalog.API/Dockerfile"
+
+# docker-build-identity-api:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "identity-api"
+#     DOCKERFILE_PATH: "src/Identity.API/Dockerfile"
+
+# docker-build-ordering-api:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "ordering-api"
+#     DOCKERFILE_PATH: "src/Ordering.API/Dockerfile"
+
+# docker-build-order-processor:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "order-processor"
+#     DOCKERFILE_PATH: "src/OrderProcessor/Dockerfile"
+
+# docker-build-payment-processor:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "payment-processor"
+#     DOCKERFILE_PATH: "src/PaymentProcessor/Dockerfile"
+
+# docker-build-webhooks-api:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "webhooks-api"
+#     DOCKERFILE_PATH: "src/Webhooks.API/Dockerfile"
+
+# docker-build-webapp:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "webapp"
+#     DOCKERFILE_PATH: "src/WebApp/Dockerfile"
+
+# docker-build-webhook-client:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "webhook-client"
+#     DOCKERFILE_PATH: "src/WebhookClient/Dockerfile"
+
+# docker-build-mobile-bff:
+#   extends: .build-dotnet-service
+#   variables:
+#     SERVICE_NAME: "mobile-bff"
+#     DOCKERFILE_PATH: "src/Mobile.Bff.Shopping/Dockerfile" 

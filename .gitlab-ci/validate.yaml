@@ -1,0 +1,16 @@
+# Validate stage jobs
+# This file contains validation jobs for code quality and dependencies
+
+validate:
+  stage: validate
+  image: mcr.microsoft.com/dotnet/sdk:9.0
+  script:
+    - echo "Validating project structure and dependencies..."
+    - dotnet restore $SOLUTION_FILE
+    - dotnet build $SOLUTION_FILE --no-restore --configuration $BUILD_CONFIGURATION
+    - dotnet list $SOLUTION_FILE package --vulnerable
+    - dotnet list $SOLUTION_FILE package --deprecated
+  artifacts:
+    reports:
+      junit: test-results.xml
+    expire_in: 1 week 

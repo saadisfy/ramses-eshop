@@ -1,0 +1,32 @@
+# Deploy stage jobs
+# This file contains deployment jobs for different environments
+
+deploy-K8s:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    # TESTING MODE: Only depends on catalog-api for step-by-step testing
+    # - docker-generate-apphost
+    # - docker-generate-basket-api
+    - docker-generate-catalog-api
+    # - docker-generate-identity-api
+    # - docker-generate-ordering-api
+    # - docker-generate-order-processor
+    # - docker-generate-payment-processor
+    # - docker-generate-webhooks-api
+    # - docker-generate-webapp
+    # - docker-generate-webhook-client
+    # - docker-generate-mobile-bff
+  before_script:
+    - apk add --no-cache curl kubectl
+  script:
+    - echo "Deploying to Kubernetes environment..."
+    # Add your Kubernetes deployment logic here
+    # Example: kubectl apply, helm upgrade, or custom deployment scripts
+    - echo "Kubernetes deployment completed"
+  environment:
+    name: kubernetes
+    url: https://your-k8s-domain.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual 
