@@ -6,17 +6,17 @@ deploy-K8s:
   image: alpine:latest
   needs:
     # TESTING MODE: Only depends on catalog-api for step-by-step testing
-    # - docker-generate-apphost
-    # - docker-generate-basket-api
-    - docker-generate-catalog-api
-    # - docker-generate-identity-api
-    # - docker-generate-ordering-api
-    # - docker-generate-order-processor
-    # - docker-generate-payment-processor
-    # - docker-generate-webhooks-api
-    # - docker-generate-webapp
-    # - docker-generate-webhook-client
-    # - docker-generate-mobile-bff
+    # - docker-publish-apphost
+    # - docker-publish-basket-api
+    - docker-publish-catalog-api
+    # - docker-publish-identity-api
+    # - docker-publish-ordering-api
+    # - docker-publish-order-processor
+    # - docker-publish-payment-processor
+    # - docker-publish-webhooks-api
+    # - docker-publish-webapp
+    # - docker-publish-webhook-client
+    # - docker-publish-mobile-bff
   before_script:
     - apk add --no-cache curl kubectl
   script:

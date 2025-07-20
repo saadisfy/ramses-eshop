@@ -6,12 +6,12 @@ security-scan:
   image: aquasec/trivy:latest
   needs:
     # TESTING MODE: Only depends on catalog-api for step-by-step testing
-    # - docker-generate-apphost
-    # - docker-generate-basket-api
-    - docker-generate-catalog-api
-    # - docker-generate-identity-api
-    # - docker-generate-ordering-api
-    # - docker-generate-webapp
+    # - docker-publish-apphost
+    # - docker-publish-basket-api
+    - docker-publish-catalog-api
+    # - docker-publish-identity-api
+    # - docker-publish-ordering-api
+    # - docker-publish-webapp
   script:
     - echo "Scanning Docker images for vulnerabilities..."
     - |

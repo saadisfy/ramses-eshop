@@ -4,6 +4,7 @@
 
 # Individual service container generation jobs
 # TESTING MODE: Only Catalog.API is active for step-by-step testing
+
 # docker-generate-apphost:
 #   extends: .generate-dotnet-container
 #   variables:
@@ -68,4 +69,6 @@ docker-generate-catalog-api:
 #   extends: .generate-dotnet-container
 #   variables:
 #     SERVICE_NAME: "mobile-bff"
-#     PROJECT_PATH: "src/Mobile.Bff.Shopping/Mobile.Bff.Shopping.csproj" 
+#     PROJECT_PATH: "src/Mobile.Bff.Shopping/Mobile.Bff.Shopping.csproj"
+
+ 
