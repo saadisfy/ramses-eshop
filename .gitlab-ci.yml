@@ -9,6 +9,19 @@ stages:
   - security-scan
   - deploy
 
+# Include modular stage files
+include:
+  #- local: '.gitlab-ci/validate.yaml'
+  #- local: '.gitlab-ci/test.yaml'
+  - local: '.gitlab-ci/build.yaml'
+  #- local: '.gitlab-ci/docker-build.yaml'
+  - local: '.gitlab-ci/docker-generate-build.yaml'
+ # - local: '.gitlab-ci/security-scan.yaml'
+  #- local: '.gitlab-ci/deploy.yaml'
+
+
+
+
 variables:
   # .NET Configuration
   DOTNET_VERSION: "9.0.x"
@@ -127,15 +140,4 @@ cache:
           -p:ContainerRegistry=ghcr.io \
           -p:ContainerRepository=$GITHUB_USERNAME/$SERVICE_NAME
       fi
-
-# Include modular stage files
-include:
-  - local: '.gitlab-ci/validate.yaml'
-  - local: '.gitlab-ci/test.yaml'
-  - local: '.gitlab-ci/build.yaml'
-  - local: '.gitlab-ci/docker-build.yaml'
-  - local: '.gitlab-ci/docker-generate-build.yaml'
-  - local: '.gitlab-ci/security-scan.yaml'
-  - local: '.gitlab-ci/deploy.yaml'
-
 
