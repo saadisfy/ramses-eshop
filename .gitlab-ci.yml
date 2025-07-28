@@ -33,7 +33,6 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_VERIFY: 1
-  DOCKER_CERT_PATH: "$CI_PROJECT_DIR/.certs"
   
   # Registry Configuration - GitHub Container Registry (GHCR)
   REGISTRY_URL: ghcr.io
@@ -106,6 +105,8 @@ cache:
     DOCKER_DRIVER: overlay2                  # Use modern storage driver for better performance
     DOCKER_TLS_VERIFY: 1                    # Verify TLS certificates
     DOCKER_BUILDKIT: 1                      # Enable BuildKit for faster builds
+    # Remove any conflicting DOCKER_CERT_PATH
+    DOCKER_CERT_PATH: ""
   before_script:
     - echo "Setting up Docker environment and installing Docker CLI..."
     - apt-get update -qq && apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
@@ -115,9 +116,16 @@ cache:
     - echo "Docker CLI installed successfully"
     - docker --version
     - echo "Testing Docker connection to DinD daemon..."
-    - docker info || echo "Failed to connect to Docker daemon"
     - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
+    - echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"
+    - echo "All Docker environment variables:"
+    - env | grep DOCKER || echo "No DOCKER variables found"
+    - echo "Checking for TLS certificates..."
+    - ls -la /certs/ 2>/dev/null || echo "No /certs directory found"
+    - echo "Waiting for TLS certificates to be generated..."
+    - timeout 30 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done' || echo "Docker daemon not ready"
+    - docker info || echo "Failed to connect to Docker daemon"
     - echo "Logging into GHCR..."
     - echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
   script:
