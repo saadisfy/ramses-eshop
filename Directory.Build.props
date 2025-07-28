@@ -9,6 +9,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Temporarily disable security warnings for transitive packages. -->
     <NoWarn>NU1901;NU1902;NU1903;NU1904</NoWarn>
+    
+    <!-- Global Container Configuration (can be overridden per project) -->
+    <PublishProfile>DefaultContainer</PublishProfile>
+    <ContainerRegistry>ghcr.io</ContainerRegistry>
+    <ContainerImageTags>$(Version)</ContainerImageTags>
   </PropertyGroup>
 
   <!-- Enable OpenAI OpenTelemetry so OpenAI calls participate in tracing and metrics. -->

@@ -92,58 +92,47 @@ cache:
         docker push $REGISTRY_IMAGE/$SERVICE_NAME:latest
       fi
 
-# Template for generating .NET container images
+# Template for generating .NET container images (No Docker CLI needed)
+# 
+# GitLab Mirror Configuration:
+# If you want to use your private registry (ghcr.io/saadisfy) as a mirror
+# without changing the image references, you can:
+# 1. Keep the original image references in your code
+# 2. Configure GitLab to pull from your mirror automatically
+# 3. The CI will use your mirrored images transparently
+#
 .generate-dotnet-container:
   stage: docker-generate
-  image: mcr.microsoft.com/dotnet/sdk:9.0 #todo: create your own image that already curls the cli   
-  services:
-    - name: docker:24.0.5-dind
-      command: ["--tls=false", "--registry-mirror=https://ghcr.io/$GITHUB_USERNAME/ramses/mirror"]
+  image: ghcr.io/saadisfy/mcr.microsoft.com/dotnet/sdk:9.0
   variables:
-    # Docker-in-Docker Configuration (Non-TLS Mode for testing)
-    DOCKER_HOST: tcp://docker:2375          # Connect to DinD daemon via TCP (non-TLS port)
-    DOCKER_DRIVER: overlay2                  # Use modern storage driver for better performance
-    DOCKER_BUILDKIT: 1                      # Enable BuildKit for faster builds
-    # Disable TLS for testing
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_TLS_VERIFY: ""
-    DOCKER_CERT_PATH: ""
+    # .NET SDK Configuration
+    DOTNET_NOLOGO: true                    # Disable .NET SDK logo output for cleaner CI logs
+    DOTNET_CLI_TELEMETRY_OPTOUT: true     # Disable telemetry collection for privacy and faster builds
   before_script:
-    - echo "Setting up Docker environment and installing Docker CLI..."
-    - apt-get update -qq && apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
-    - curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    - apt-get update -qq && apt-get install -y -qq docker-ce-cli
-    - echo "Docker CLI installed successfully"
-    - docker --version 
-    - echo "Testing Docker connection to DinD daemon..."
-    - echo "DOCKER_HOST=$DOCKER_HOST"
-    - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
-    - echo "DOCKER_CERT_PATH=$DOCKER_CERT_PATH"
-    - echo "All Docker environment variables:"
-    - env | grep DOCKER || echo "No DOCKER variables found"
-    - echo "Checking for TLS certificates..."
-    - ls -la /certs/ 2>/dev/null || echo "No /certs directory found"
-    - echo "Waiting for TLS certificates to be generated..."
-    - timeout 30 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done' || echo "Docker daemon not ready"
-    - docker info || echo "Failed to connect to Docker daemon"
-    - echo "Logging into GHCR..."
-    - echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+    - echo "Setting up .NET environment..."
+    - dotnet --version
+    - echo "Container publishing configuration:"
+    - echo "ContainerRegistry: ghcr.io"
+    - echo "ContainerUsername: $GITHUB_USERNAME"
+    - echo "ContainerImageName: $GITHUB_USERNAME/eShop/$SERVICE_NAME"
+    - echo "ContainerImageTags: $CI_COMMIT_SHA"
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
-    - echo "Debugging Docker availability..."
     - echo "Restoring packages for $PROJECT_PATH..."
     - dotnet restore $PROJECT_PATH
+    # Note: Command-line arguments (-p:) have higher priority than .csproj properties
+    # This ensures CI can override any project-level container configuration
     - |
       dotnet publish $PROJECT_PATH \
         --configuration $BUILD_CONFIGURATION \
         --output ./publish/$SERVICE_NAME \
         --no-restore \
         --self-contained false \
-        -p:PublishProfile=DefaultContainer \
-        -p:ContainerImageTag=$CI_COMMIT_SHA \
         -p:ContainerRegistry=ghcr.io \
-        -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME
+        -p:ContainerImageName=$GITHUB_USERNAME/eShop/$SERVICE_NAME \
+        -p:ContainerImageTags=$(Version) \
+        -p:ContainerUsername=$GITHUB_USERNAME \
+        -p:ContainerPassword=$GITHUB_TOKEN
 
 # Template for publishing Docker images
 .publish-docker-image:

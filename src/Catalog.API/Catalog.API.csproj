@@ -3,6 +3,12 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <UserSecretsId>d1b521ec-3411-4d39-98c6-8509466ed471</UserSecretsId>
+    
+    <!-- Microservice Versioning -->
+    <Version>1.0.0</Version>
+    
+    <!-- Container Configuration -->
+    <ContainerImageName>saadisfy/eShop/catalog-api</ContainerImageName>
   </PropertyGroup>
 
   <ItemGroup>
