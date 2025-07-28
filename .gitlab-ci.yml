@@ -96,28 +96,33 @@ cache:
 # Template for generating .NET container images
 .generate-dotnet-container:
   stage: docker-generate
-  image: mcr.microsoft.com/dotnet/sdk:9.0
+  image: mcr.microsoft.com/dotnet/sdk:9.0 #todo: create your own image that already curls the cli   
   services:
     - docker:24.0.5-dind
   variables:
-    DOCKER_BUILDKIT: 1
+    # Docker-in-Docker Configuration (TLS Mode)
+    DOCKER_HOST: tcp://docker:2376          # Connect to DinD daemon via TCP
+    DOCKER_TLS_CERTDIR: "/certs"            # Enable TLS encryption for secure connection
+    DOCKER_DRIVER: overlay2                  # Use modern storage driver for better performance
+    DOCKER_TLS_VERIFY: 1                    # Verify TLS certificates
+    DOCKER_BUILDKIT: 1                      # Enable BuildKit for faster builds
   before_script:
-    - echo "Setting up Docker environment..."
-    - echo "Installing Docker CLI..."
+    - echo "Setting up Docker environment and installing Docker CLI..."
     - apt-get update -qq && apt-get install -y -qq apt-transport-https ca-certificates curl gnupg
     - curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     - apt-get update -qq && apt-get install -y -qq docker-ce-cli
     - echo "Docker CLI installed successfully"
     - docker --version
+    - echo "Testing Docker connection to DinD daemon..."
+    - docker info || echo "Failed to connect to Docker daemon"
+    - echo "DOCKER_HOST=$DOCKER_HOST"
+    - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
     - echo "Logging into GHCR..."
     - echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
     - echo "Debugging Docker availability..."
-    - which docker || echo "Docker CLI not found"
-    - docker --version || echo "Docker version failed"
-    - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "Restoring packages for $PROJECT_PATH..."
     - dotnet restore $PROJECT_PATH
     - |
