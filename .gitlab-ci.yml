@@ -103,7 +103,7 @@ cache:
 #
 .generate-dotnet-container:
   stage: docker-generate
-  image: ghcr.io/saadisfy/mcr.microsoft.com/dotnet/sdk:9.0
+  image: ghcr.io/saadisfy/mirror/mcr.microsoft.com/dotnet/sdk:9.0 # This is a mirror of the public registry, so we are not limited by dockerhub pull rate limits
   variables:
     # .NET SDK Configuration
     DOTNET_NOLOGO: true                    # Disable .NET SDK logo output for cleaner CI logs
