@@ -141,10 +141,9 @@ cache:
         --no-restore \
         --self-contained false \
         -p:PublishProfile=DefaultContainer \
-        -p:ContainerImageName=$REGISTRY_IMAGE/$SERVICE_NAME \
         -p:ContainerImageTag=$CI_COMMIT_SHA \
         -p:ContainerRegistry=ghcr.io \
-        -p:ContainerRepository=$GITHUB_USERNAME/$SERVICE_NAME
+        -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME
 
 # Template for publishing Docker images
 .publish-docker-image:
