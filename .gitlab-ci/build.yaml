@@ -1,15 +1,15 @@
 # Build stage jobs
 # This file contains application build jobs
 
-build:
-  stage: build
-  image: mcr.microsoft.com/dotnet/sdk:9.0
-  script:
-    - echo "Building application..."
-    - dotnet restore $SOLUTION_FILE
-    - dotnet build $SOLUTION_FILE --configuration $BUILD_CONFIGURATION --no-restore
-    - dotnet publish $SOLUTION_FILE --configuration $BUILD_CONFIGURATION --output ./publish --no-restore --self-contained false
-  artifacts:
-    paths:
-      - publish/
-    expire_in: 1 week 
+# build:
+#   stage: build
+#   image: mcr.microsoft.com/dotnet/sdk:9.0
+#   script:
+#     - echo "Building application..."
+#     - dotnet restore $SOLUTION_FILE
+#     - dotnet build $SOLUTION_FILE --configuration $BUILD_CONFIGURATION --no-restore
+#     - dotnet publish $SOLUTION_FILE --configuration $BUILD_CONFIGURATION --output ./publish --no-restore --self-contained false
+#   artifacts:
+#     paths:
+#       - publish/
+#     expire_in: 1 week 
