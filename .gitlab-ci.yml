@@ -13,7 +13,7 @@ stages:
 include:
   #- local: '.gitlab-ci/validate.yaml'
   #- local: '.gitlab-ci/test.yaml'
-  - local: '.gitlab-ci/build.yaml'
+  # - local: '.gitlab-ci/build.yaml'
   #- local: '.gitlab-ci/docker-build.yaml'
   - local: '.gitlab-ci/docker-generate-build.yaml'
   #- local: '.gitlab-ci/docker-publish.yaml'
