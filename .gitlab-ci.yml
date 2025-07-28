@@ -97,15 +97,16 @@ cache:
   stage: docker-generate
   image: mcr.microsoft.com/dotnet/sdk:9.0 #todo: create your own image that already curls the cli   
   services:
-    - docker:24.0.5-dind
+    - name: docker:24.0.5-dind
+      command: ["--tls=false", "--registry-mirror=https://ghcr.io/$GITHUB_USERNAME/ramses/mirror"]
   variables:
-    # Docker-in-Docker Configuration (TLS Mode)
-    DOCKER_HOST: tcp://docker:2376          # Connect to DinD daemon via TCP
-    DOCKER_TLS_CERTDIR: "/certs"            # Enable TLS encryption for secure connection
+    # Docker-in-Docker Configuration (Non-TLS Mode for testing)
+    DOCKER_HOST: tcp://docker:2375          # Connect to DinD daemon via TCP (non-TLS port)
     DOCKER_DRIVER: overlay2                  # Use modern storage driver for better performance
-    DOCKER_TLS_VERIFY: 1                    # Verify TLS certificates
     DOCKER_BUILDKIT: 1                      # Enable BuildKit for faster builds
-    # Remove any conflicting DOCKER_CERT_PATH
+    # Disable TLS for testing
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_TLS_VERIFY: ""
     DOCKER_CERT_PATH: ""
   before_script:
     - echo "Setting up Docker environment and installing Docker CLI..."
@@ -114,10 +115,7 @@ cache:
     - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     - apt-get update -qq && apt-get install -y -qq docker-ce-cli
     - echo "Docker CLI installed successfully"
-    - docker --version
-    - | # Configure Docker daemon to use mirror
-      mkdir -p /etc/docker
-      echo '{"registry-mirrors": ["https://ghcr.io/$GITHUB_USERNAME/ramses/mirror"]}' > /etc/docker/daemon.json 
+    - docker --version 
     - echo "Testing Docker connection to DinD daemon..."
     - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
