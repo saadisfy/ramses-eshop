@@ -94,12 +94,6 @@ cache:
 
 # Template for generating .NET container images (No Docker CLI needed)
 # 
-# GitLab Mirror Configuration:
-# If you want to use your private registry (ghcr.io/saadisfy) as a mirror
-# without changing the image references, you can:
-# 1. Keep the original image references in your code
-# 2. Configure GitLab to pull from your mirror automatically
-# 3. The CI will use your mirrored images transparently
 #
 .generate-dotnet-container:
   stage: docker-generate
@@ -130,7 +124,7 @@ cache:
         --self-contained false \
         -p:ContainerRegistry=ghcr.io \
         -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME \
-        -p:ContainerImageTags=$PROJECT_VERSION \
+        -p:ContainerImageTags=$PROJECT_VERSION
 
 # Template for publishing Docker images
 .publish-docker-image:
