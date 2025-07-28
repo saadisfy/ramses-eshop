@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <UserSecretsId>b99dbce4-17d4-41d2-858a-2b0529d60bb8</UserSecretsId>
-     <!-- Microservice Versioning -->
+     <!-- Semantic Versioning -->
     <Version>1.0.0</Version>
   </PropertyGroup>
 

@@ -3,11 +3,7 @@
 # instead of Dockerfiles
 
 
-docker-generate-apphost:
-  extends: .generate-dotnet-container
-  variables:
-    SERVICE_NAME: "apphost"
-    PROJECT_PATH: "src/eShop.AppHost/eShop.AppHost.csproj"
+
 
 docker-generate-basket-api:
   extends: .generate-dotnet-container
