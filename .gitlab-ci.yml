@@ -108,14 +108,6 @@ cache:
     # .NET SDK Configuration
     DOTNET_NOLOGO: true                    # Disable .NET SDK logo output for cleaner CI logs
     DOTNET_CLI_TELEMETRY_OPTOUT: true     # Disable telemetry collection for privacy and faster builds
-  before_script:
-    - echo "Setting up .NET environment..."
-    - dotnet --version
-    - echo "Container publishing configuration:"
-    - echo "ContainerRegistry: ghcr.io"
-    - echo "ContainerUsername: $GITHUB_USERNAME"
-    - echo "ContainerImageName: $GITHUB_USERNAME/eShop/$SERVICE_NAME"
-    - echo "ContainerImageTags: $CI_COMMIT_SHA"
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
     - echo "Restoring packages for $PROJECT_PATH..."
