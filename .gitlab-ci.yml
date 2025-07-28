@@ -127,7 +127,6 @@ cache:
         --self-contained false \
         -p:ContainerRegistry=ghcr.io \
         -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME \
-        -p:ContainerImageTags=\$\(Version\)
 
 # Template for publishing Docker images
 .publish-docker-image:
