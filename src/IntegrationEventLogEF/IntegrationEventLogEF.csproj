@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>eShop.IntegrationEventLogEF</RootNamespace>
     <IsPublishable>false</IsPublishable>
+     <!-- Semantic Versioning -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

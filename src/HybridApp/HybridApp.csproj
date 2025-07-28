@@ -29,6 +29,8 @@
         <ApplicationId>com.companyname.eshop.hybridapp</ApplicationId>
 
         <!-- Versions -->
+         <!-- Semantic Versioning -->
+        <Version>1.0.0</Version>
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
 

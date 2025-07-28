@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>eShop.Ordering.API</RootNamespace>
     <UserSecretsId>7161b768-033d-41c7-bc5d-37528275e1f3</UserSecretsId>
+     <!-- Semantic Versioning -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
