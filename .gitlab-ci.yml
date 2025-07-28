@@ -93,37 +93,32 @@ cache:
       fi
 
 # Template for generating .NET container images (No Docker CLI needed)
-# 
-#
 .generate-dotnet-container:
   stage: docker-generate
-  image: mcr.microsoft.com/dotnet/sdk:9.0 # This is a mirror of the public registry, so we are not limited by dockerhub pull rate limits
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   variables:
-    # .NET SDK Configuration
-    DOTNET_NOLOGO: true                    # Disable .NET SDK logo output for cleaner CI logs
-    DOTNET_CLI_TELEMETRY_OPTOUT: true     # Disable telemetry collection for privacy and faster builds
-    # Docker Configuration for .NET 9 Container Publishing
+    DOTNET_NOLOGO: "true"
+    DOTNET_CLI_TELEMETRY_OPTOUT: "true"
     DOCKER_CONFIG: "$CI_PROJECT_DIR/.docker"
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
     - mkdir -p "$DOCKER_CONFIG"
-    - |
-      echo '{"auths":{"ghcr.io":{"auth":"'$(echo -n "$GITHUB_USERNAME:$GITHUB_TOKEN" | base64)'"}}}' > "$DOCKER_CONFIG/config.json"
+    - AUTH_STRING=$(echo -n "$GITHUB_USERNAME:$GITHUB_TOKEN" | base64)
+    - echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH_STRING\"}}}" > "$DOCKER_CONFIG/config.json"
     - PROJECT_VERSION=$(grep -oP '<Version>\K[^<]+' $PROJECT_PATH)
     - PROJECT_VERSION=${PROJECT_VERSION:-1.0.0}
     - echo "Using version: $PROJECT_VERSION"
     - dotnet restore $PROJECT_PATH
-    # Note: Command-line arguments (-p:) have higher priority than .csproj properties
-    # This ensures CI can override any project-level container configuration
-    - |
-      dotnet publish $PROJECT_PATH \
-        --configuration $BUILD_CONFIGURATION \
-        --output ./publish/$SERVICE_NAME \
-        --no-restore \
-        --self-contained false \
-        -p:ContainerRegistry=ghcr.io \
-        -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME \
-        -p:ContainerImageTags=$PROJECT_VERSION
+    - >
+      dotnet publish $PROJECT_PATH
+      --configuration $BUILD_CONFIGURATION
+      --output ./publish/$SERVICE_NAME
+      --no-restore
+      --self-contained false
+      -p:ContainerRegistry=ghcr.io
+      -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME
+      -p:ContainerImageTags=$PROJECT_VERSION
+
 
 # Template for publishing Docker images
 .publish-docker-image:
