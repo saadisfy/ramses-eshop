@@ -106,13 +106,10 @@ cache:
     DOCKER_CONFIG: "$CI_PROJECT_DIR/.docker"
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
-    - echo "Setting up Docker authentication for .NET 9..."
     - mkdir -p "$DOCKER_CONFIG"
     - echo '{"auths":{"ghcr.io":{"auth":"'$(echo -n "$GITHUB_USERNAME:$GITHUB_TOKEN" | base64)'"}}}' > "$DOCKER_CONFIG/config.json"
-    - echo "Getting project version..."
     - PROJECT_VERSION=$(grep -oP '<Version>\K[^<]+' $PROJECT_PATH || echo "1.0.0")
     - echo "Using version: $PROJECT_VERSION"
-    - echo "Restoring packages for $PROJECT_PATH..."
     - dotnet restore $PROJECT_PATH
     # Note: Command-line arguments (-p:) have higher priority than .csproj properties
     # This ensures CI can override any project-level container configuration
