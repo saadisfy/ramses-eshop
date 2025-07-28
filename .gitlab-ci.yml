@@ -103,21 +103,22 @@ cache:
   script:
     - echo "Generating and pushing $SERVICE_NAME container image..."
     - mkdir -p "$DOCKER_CONFIG"
-    - AUTH_STRING=$(echo -n "$GITHUB_USERNAME:$GITHUB_TOKEN" | base64)
-    - echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$AUTH_STRING\"}}}" > "$DOCKER_CONFIG/config.json"
+    - echo '{"auths":{"ghcr.io":{"auth":"'$(echo -n "$GITHUB_USERNAME:$GITHUB_TOKEN" | base64)'"}}}' > "$DOCKER_CONFIG/config.json"
     - PROJECT_VERSION=$(grep -oP '<Version>\K[^<]+' $PROJECT_PATH)
     - PROJECT_VERSION=${PROJECT_VERSION:-1.0.0}
-    - echo "Using version: $PROJECT_VERSION"
+    - echo "Restoring packages for $PROJECT_PATH..."
     - dotnet restore $PROJECT_PATH
-    - >
-      dotnet publish $PROJECT_PATH
-      --configuration $BUILD_CONFIGURATION
-      --output ./publish/$SERVICE_NAME
-      --no-restore
-      --self-contained false
-      -p:ContainerRegistry=ghcr.io
-      -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME
-      -p:ContainerImageTags=$PROJECT_VERSION
+    # Note: Command-line arguments (-p:) have higher priority than .csproj properties
+    # This ensures CI can override any project-level container configuration
+    - |
+      dotnet publish $PROJECT_PATH \
+        --configuration $BUILD_CONFIGURATION \
+        --output ./publish/$SERVICE_NAME \
+        --no-restore \
+        --self-contained false \
+        -p:ContainerRegistry=ghcr.io \
+        -p:ContainerRepository=$GITHUB_USERNAME/eShop/$SERVICE_NAME \
+        -p:ContainerImageTags=$PROJECT_VERSION
 
 
 # Template for publishing Docker images
