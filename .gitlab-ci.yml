@@ -115,6 +115,8 @@ cache:
     - apt-get update -qq && apt-get install -y -qq docker-ce-cli
     - echo "Docker CLI installed successfully"
     - docker --version
+    - | # Configure Docker daemon to use mirror
+      echo '{"registry-mirrors": ["https://ghcr.io/$GITHUB_USERNAME/ramses/mirror"]}' > /etc/docker/daemon.json 
     - echo "Testing Docker connection to DinD daemon..."
     - echo "DOCKER_HOST=$DOCKER_HOST"
     - echo "DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR"
