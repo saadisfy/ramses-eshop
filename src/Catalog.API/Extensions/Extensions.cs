@@ -16,9 +16,7 @@ public static class Extensions
         {
             dbContextOptionsBuilder.UseNpgsql(builder =>
             {
-                // TODO: @saadisfy - UseVector() commented out for deployment testing only
-                // Re-enable when using PostgreSQL with pgvector extension
-                // builder.UseVector();
+                builder.UseVector();
             });
         });
 
