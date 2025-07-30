@@ -1,0 +1,70 @@
+# Catalog API with dedicated PostgreSQL instance
+
+# Microservice configuration
+microservice:
+  name: "catalog-api"
+  environment: "Production"
+  port: 8080
+  healthPath: "/health"
+  readyPath: "/health"
+
+# Container image
+image:
+  registry: "ghcr.io/saadisfy/eshop"
+  repository: "catalog-api"
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+  pullSecret: "ghcr-secret"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Ingress disabled for internal API
+ingress:
+  enabled: false
+
+# PostgreSQL configuration (custom deployment)
+postgresql:
+  enabled: true
+  auth:
+    username: "postgres"
+    password: "CHANGEME"
+    database: "catalogdb"
+
+# Shared services (Redis, RabbitMQ) - reference external services
+sharedServices:
+  redis:
+    serviceName: "redis-service"
+    port: 6379
+  rabbitmq:
+    serviceName: "rabbitmq-service"
+    port: 5672
+    username: "guest"
+    password: "guest"
+
+# Application configuration
+config:
+  appSettings:
+    Logging__LogLevel__Default: "Information"
+    Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+    EventBus__SubscriptionClientName: "Catalog"
+    EventBus__RetryCount: "10"
+    CatalogOptions__UseCustomizationData: "false"
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10

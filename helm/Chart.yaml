@@ -1,0 +1,19 @@
+apiVersion: v2
+name: eshop
+version: 0.1.0
+description: eShop microservices umbrella chart
+type: application
+appVersion: "1.0.0"
+dependencies:
+  - name: catalog.api
+    version: "0.1.0"
+    condition: catalog.api.enabled
+  - name: basket.api  
+    version: "0.1.0"
+    condition: basket.api.enabled
+  - name: ordering.api
+    version: "0.1.0" 
+    condition: ordering.api.enabled
+  - name: identity.api
+    version: "0.1.0"
+    condition: identity.api.enabled

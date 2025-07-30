@@ -1,0 +1,16 @@
+global:
+  imageRegistry: "ghcr.io/saadisfy/eshop"
+  imageTag: "1.0.0"
+  namespace: "eshop"
+
+catalog.api:
+  enabled: true
+  
+basket.api:
+  enabled: false
+  
+ordering.api:
+  enabled: false
+  
+identity.api:
+  enabled: false

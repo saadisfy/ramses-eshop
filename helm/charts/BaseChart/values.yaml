@@ -1,0 +1,160 @@
+# Default values for eShop microservice base chart
+# This chart can be used for any eShop microservice by changing these values
+
+# Basic deployment configuration
+replicaCount: 1
+
+# Certificate issuer configuration (YAML anchor for reuse) - prod or staging 
+certIssuerName: &certIssuerName "letsencrypt-prod"
+certIssuerKind: &certIssuerKind "ClusterIssuer"
+
+# Microservice configuration
+microservice:
+  # Name of the microservice (e.g., "catalog-api", "basket-api", "ordering-api")
+  name: "example-service"
+  # Environment (e.g., "development", "staging", "production")
+  environment: "production"
+  # Port the application listens on (typically 8080 for .NET apps)
+  port: 8080
+  # Health check endpoint
+  healthPath: "/health"
+  # Ready check endpoint  
+  readyPath: "/health"
+
+# Container image configuration
+image:
+  # Container registry (e.g., "ghcr.io/yourorg/eshop")
+  registry: "ghcr.io/saadisfy/eshop"
+  # Repository name (will be combined with registry)
+  repository: "example-service"
+  # Image tag (defaults to appVersion from Chart.yaml if not set)
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+# Pod configuration
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# Kubernetes Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  # Target port should match microservice.port
+  targetPort: 8080
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: *certIssuerName
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: example.saadisfy.me
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - example.saadisfy.me
+      secretName: example-service-tls
+
+# Service Discovery Configuration
+# These will be injected as environment variables for service-to-service communication
+serviceEndpoints:
+  catalogApi: "http://catalog-service"
+  basketApi: "http://basket-service"
+  orderingApi: "http://ordering-service"
+  identityApi: "http://identity-service"
+  webhooksApi: "http://webhooks-service"
+
+# Infrastructure Services Configuration
+infrastructure:
+  # PostgreSQL configuration
+  postgres:
+    serviceName: "postgres-service"
+    port: 5432
+    # Database names will be used to construct connection strings
+    databases:
+      catalog: "catalogdb"
+      identity: "identitydb"
+      ordering: "orderingdb"
+      webhooks: "webhooksdb"
+  
+  # Redis configuration
+  redis:
+    serviceName: "redis-service"
+    port: 6379
+  
+  # RabbitMQ/Event Bus configuration
+  eventBus:
+    serviceName: "rabbitmq-service"
+    port: 5672
+    username: "guest"
+    # Password should be provided via secret
+    subscriptionClientName: ""  # Will be set to microservice.name if empty
+
+# ConfigMap and Secret configuration
+config:
+  # Enable creation of ConfigMap for application configuration
+  createConfigMap: true
+  # Enable creation of Secret for sensitive configuration
+  createSecret: true
+  
+  # Application-specific configuration that goes into ConfigMap
+  appSettings:
+    # Logging configuration
+    Logging__LogLevel__Default: "Information"
+    Logging__LogLevel__Microsoft: "Warning"
+    Logging__LogLevel__Microsoft.Hosting.Lifetime: "Information"
+    
+    # Event Bus settings
+    EventBus__RetryCount: "10"
+    
+# Sensitive configuration (will be created as Secret)
+secrets:
+  # Database connection strings (these are templates, actual secrets should be provided externally)
+  connectionStrings:
+    # PostgreSQL connections - will be templated with infrastructure.postgres values
+    enabled: true
+  
+  # Event Bus credentials
+  eventBus:
+    enabled: true
+
+# Resource configuration
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Node selection
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Horizontal Pod Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80 

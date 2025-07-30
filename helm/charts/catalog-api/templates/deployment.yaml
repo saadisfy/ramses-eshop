@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+  labels:
+    app: catalog-api
+    version: {{ .Chart.AppVersion }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      app: catalog-api
+  template:
+    metadata:
+      labels:
+        app: catalog-api
+    spec:
+      {{- with .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ . }}
+      {{- end }}
+      containers:
+        - name: catalog-api
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.microservice.port }}
+              protocol: TCP
+          
+          env:
+            # Basic configuration
+            - name: ASPNETCORE_ENVIRONMENT
+              value: {{ .Values.microservice.environment | quote }}
+            - name: ASPNETCORE_URLS
+              value: "http://+:{{ .Values.microservice.port }}"
+            
+            # Database connection - dedicated PostgreSQL
+            - name: ConnectionStrings__catalogdb #todo: @saadisfy - replace this through proper secrets
+              value: "Host={{ .Release.Name }}-postgresql;Port=5432;Database={{ .Values.postgresql.auth.database }};Username={{ .Values.postgresql.auth.username }};Password={{ .Values.postgresql.auth.password }}"
+            
+            # Shared services connections
+            - name: ConnectionStrings__Redis #todo: @saadisfy - replace this through proper secrets
+              value: "{{ .Values.sharedServices.redis.serviceName }}:{{ .Values.sharedServices.redis.port }}"
+            - name: ConnectionStrings__EventBus #todo: @saadisfy - replace this through proper secrets
+              value: "amqp://{{ .Values.sharedServices.rabbitmq.username }}:{{ .Values.sharedServices.rabbitmq.password }}@{{ .Values.sharedServices.rabbitmq.serviceName }}:{{ .Values.sharedServices.rabbitmq.port }}"
+            
+            # Application settings
+            {{- range $key, $value := .Values.config.appSettings }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.microservice.healthPath }}
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.microservice.readyPath }}
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
