@@ -11,14 +11,14 @@ stages:
 
 # Include modular stage files
 include:
-  #- local: '.gitlab-ci/validate.yaml'
-  #- local: '.gitlab-ci/test.yaml'
-  # - local: '.gitlab-ci/build.yaml'
-  #- local: '.gitlab-ci/docker-build.yaml'
-  - local: '.gitlab-ci/docker-generate-build.yaml'
-  #- local: '.gitlab-ci/docker-publish.yaml'
- # - local: '.gitlab-ci/security-scan.yaml'
-  #- local: '.gitlab-ci/deploy.yaml'
+  #- local: 'gitlab-ci/validate.yaml'
+  #- local: 'gitlab-ci/test.yaml'
+  #- local: 'gitlab-ci/build.yaml'
+  #- local: 'gitlab-ci/docker-build.yaml'
+  - local: 'gitlab-ci/docker-generate-build.yaml'
+  #- local: 'gitlab-ci/docker-publish.yaml'
+  #- local: 'gitlab-ci/security-scan.yaml'
+  #- local: 'gitlab-ci/deploy.yaml'
 
 
 
