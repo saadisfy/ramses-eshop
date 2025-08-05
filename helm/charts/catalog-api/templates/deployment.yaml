@@ -53,23 +53,23 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
           
-          # Health checks
-          livenessProbe:
-            httpGet:
-              path: {{ .Values.microservice.healthPath }}
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: {{ .Values.microservice.readyPath }}
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 3
+          # Health checks - temporarily disabled for debugging
+          # livenessProbe:
+          #   httpGet:
+          #     path: {{ .Values.microservice.healthPath }}
+          #     port: http
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   failureThreshold: 3
+          # readinessProbe:
+          #   httpGet:
+          #     path: {{ .Values.microservice.readyPath }}
+          #     port: http
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 5
+          #   timeoutSeconds: 3
+          #   failureThreshold: 3
           
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

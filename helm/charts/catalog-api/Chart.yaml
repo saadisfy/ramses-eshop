@@ -1,7 +1,11 @@
 apiVersion: v2
 name: catalog-api
 version: 0.1.0
-description: eShop Catalog API microservice with dedicated PostgreSQL
+description: eShop Catalog API microservice with dedicated PostgreSQL and RabbitMQ
 type: application
 appVersion: "1.0.0"
-# No external dependencies - using custom PostgreSQL deployment
+dependencies:
+  - name: rabbitmq
+    version: "14.6.6"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: rabbitmq.enabled
