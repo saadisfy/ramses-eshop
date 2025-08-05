@@ -270,6 +270,207 @@ BFF (Backend for Frontend) for different client types.
 ### 5. Configuration Hierarchy
 Base configuration + environment-specific overrides.
 
+### 6. EventBus and Message-Driven Architecture
+Decoupled communication through events using RabbitMQ as transport.
+
+## EventBus Architecture: Message-Driven Microservices
+
+### What is an EventBus?
+
+An **EventBus** is an **architectural pattern** that enables **decoupled communication** between microservices through events. It serves as a "communication highway" where services can:
+
+- **Publish events** when something important happens (business events)
+- **Subscribe to events** they care about from other services
+- **React to events** asynchronously without direct service coupling
+
+### EventBus vs RabbitMQ: Layered Architecture
+
+```
+┌─────────────┐    publishes    ┌──────────────┐    routes via    ┌─────────────┐
+│   Service   │ ─────────────► │   EventBus   │ ──────────────► │  RabbitMQ   │
+│ (Catalog)   │                │ (Abstraction)│                 │ (Transport) │
+└─────────────┘                └──────────────┘                 └─────────────┘
+                                        │                              │
+                               ┌────────▼────────┐            ┌────────▼────────┐
+                               │ - Event routing │            │ - Queues        │
+                               │ - Event types   │            │ - Exchanges     │
+                               │ - Subscriptions │            │ - Routing keys  │
+                               └─────────────────┘            └─────────────────┘
+```
+
+#### EventBus = **Business Logic Layer**
+- Defines **what** events to send/receive (business semantics)
+- Handles **event serialization/deserialization** (JSON, XML)
+- Manages **subscriptions** and **event type routing**
+- Provides **retry logic** and **dead letter handling**
+- Offers **type-safe event contracts**
+
+#### RabbitMQ = **Infrastructure Transport Layer**  
+- Handles **how** messages are delivered (AMQP protocol)
+- Manages **queues**, **exchanges**, and **routing keys**
+- Ensures **message persistence** and **delivery guarantees**
+- Provides **network transport** and **clustering**
+- Handles **connection management** and **failover**
+
+### EventBus Implementation in eShop
+
+#### Configuration in Helm Templates
+
+The EventBus configuration is injected via environment variables in the deployment:
+
+```yaml
+# From helm/charts/catalog-api-v2/charts/baseChart/templates/deployment.yaml
+{{- if .Values.sharedServices.rabbitmq.enabled }}
+# Event Bus connection (when enabled)
+- name: ConnectionStrings__EventBus
+  value: "amqp://{{ .Values.sharedServices.rabbitmq.username }}:{{ .Values.sharedServices.rabbitmq.password }}@{{ .Values.sharedServices.rabbitmq.serviceName }}:{{ .Values.sharedServices.rabbitmq.port }}"
+
+# Event Bus configuration
+- name: EventBus__SubscriptionClientName
+  value: {{ include "application.eventBusClientName" . | quote }}
+- name: EventBus__RetryCount
+  value: "10"
+{{- end }}
+```
+
+#### Key Configuration Elements:
+
+1. **Connection String**: `amqp://user:password@catalog-api-v2-rabbitmq:5672`
+   - Uses **AMQP (Advanced Message Queuing Protocol)**
+   - Points to the RabbitMQ service instance
+   - Includes authentication credentials
+
+2. **Subscription Client Name**: `"Catalog"`
+   - **Identifies this specific service** instance
+   - Used for **queue naming** and **routing**
+   - Enables **multiple service instances** with shared queues
+
+3. **Retry Count**: `"10"`
+   - Number of **retry attempts** for failed event processing
+   - Implements **resilience** against transient failures
+
+### Real-World Event Flow Example
+
+#### Business Scenario: Product Price Change
+
+```csharp
+// 1. Catalog Service publishes an event (Business Logic)
+public class CatalogService
+{
+    private readonly IEventBus _eventBus;
+    
+    public async Task UpdateProductPrice(int productId, decimal newPrice)
+    {
+        // Update database
+        await _catalogRepository.UpdatePriceAsync(productId, newPrice);
+        
+        // Publish business event
+        var priceChangedEvent = new ProductPriceChangedEvent
+        {
+            ProductId = productId,
+            NewPrice = newPrice,
+            ChangedAt = DateTime.UtcNow
+        };
+        
+        await _eventBus.PublishAsync(priceChangedEvent);
+    }
+}
+```
+
+#### Event Processing Pipeline:
+
+1. **EventBus Layer** (Application):
+   ```csharp
+   // Serializes event to JSON
+   // Adds metadata (event type, correlation ID, timestamp)
+   // Determines routing key based on event type
+   ```
+
+2. **RabbitMQ Layer** (Infrastructure):
+   ```
+   Exchange: "eShop.Events"
+   RoutingKey: "catalog.product.price.changed"
+   Queue: "ordering-service-queue"
+   Message: {"ProductId": 123, "NewPrice": 89.99, "ChangedAt": "2024-01-15T10:30:00Z"}
+   ```
+
+3. **Subscriber Services React**:
+   ```csharp
+   // Order Service - Updates pending order calculations
+   // Inventory Service - Triggers restock alerts for price drops
+   // Notification Service - Sends price change notifications to customers
+   // Analytics Service - Records price change for business intelligence
+   ```
+
+### EventBus vs Direct HTTP Communication
+
+| **EventBus Pattern** | **Direct HTTP Calls** |
+|---------------------|----------------------|
+| ✅ **Asynchronous** - Non-blocking | ❌ **Synchronous** - Blocking calls |
+| ✅ **Decoupled** - Services don't know about each other | ❌ **Coupled** - Services must know endpoints |
+| ✅ **Resilient** - Messages persist if service is down | ❌ **Fragile** - Calls fail if service unavailable |
+| ✅ **Scalable** - Multiple subscribers can process | ❌ **Limited** - Point-to-point communication |
+| ✅ **Auditable** - Message history and tracing | ❌ **Transient** - No natural audit trail |
+| ❌ **Complex** - Requires message infrastructure | ✅ **Simple** - Direct communication |
+| ❌ **Eventually Consistent** - Eventual propagation | ✅ **Strongly Consistent** - Immediate results |
+
+### EventBus in ServiceDefaults
+
+The EventBus is configured through ServiceDefaults for consistent behavior:
+
+```csharp
+// eShop.ServiceDefaults/Extensions.cs
+public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
+{
+    builder.AddBasicServiceDefaults();
+    
+    // Configure HTTP clients for external service calls
+    builder.Services.ConfigureHttpClientDefaults(http =>
+    {
+        http.AddStandardResilienceHandler();  // Polly retry policies
+        http.AddServiceDiscovery();          // Service name resolution
+    });
+    
+    // EventBus would be configured here in a real implementation
+    // builder.AddEventBus(); // Adds RabbitMQ-based EventBus
+    
+    return builder;
+}
+```
+
+### Message Patterns Supported
+
+1. **Publish/Subscribe**: One publisher, multiple subscribers
+   - `ProductPriceChangedEvent` → Multiple services react
+
+2. **Request/Response**: Asynchronous request-reply pattern  
+   - `GetInventoryStatusRequest` → `InventoryStatusResponse`
+
+3. **Event Sourcing**: Events as the source of truth
+   - All business state changes captured as events
+
+4. **Saga Pattern**: Long-running business transactions
+   - Order processing across multiple services
+
+### Production Benefits
+
+1. **Fault Tolerance**: Messages survive service restarts
+2. **Load Balancing**: Multiple service instances share message processing
+3. **Monitoring**: Built-in message tracking and dead letter queues
+4. **Scaling**: Add subscribers without changing publishers
+5. **Testing**: Easy to mock EventBus for unit tests
+6. **Deployment**: Services can be deployed independently
+
+### Key Insight: Separation of Concerns
+
+The **EventBus abstraction** allows you to:
+- **Swap transport mechanisms** (RabbitMQ → Azure Service Bus → Apache Kafka)
+- **Change without breaking business logic**
+- **Test business logic** independently of message infrastructure
+- **Maintain consistent APIs** across different environments
+
+This pattern is essential for **cloud-native microservices** where services must be **loosely coupled**, **independently deployable**, and **resilient to failures**.
+
 ## Development vs. Production
 
 | Aspect | Aspire (Development) | Production |

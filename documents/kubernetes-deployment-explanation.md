@@ -1,869 +1,754 @@
-# Kubernetes Deployment Explanation for .NET Microservices
+# eShop Kubernetes Deployment Architecture
 
-This document explains how to deploy .NET microservices to Kubernetes with DevOps-friendly patterns, focusing on externalized configuration, service discovery via environment variables, and Helm chart management.
+This document explains the complete Kubernetes deployment architecture for the eShop .NET microservices application, including Helm chart structure, shared infrastructure patterns, and DevOps-friendly service discovery.
 
 ## Table of Contents
-1. [Configuration Consistency: Aspire vs Production](#configuration-consistency-aspire-vs-production)
-2. [DevOps-Friendly Service Discovery](#devops-friendly-service-discovery)
-3. [Environment Variable Based Configuration](#environment-variable-based-configuration)
-4. [Helm Chart Structure for Microservices](#helm-chart-structure-for-microservices)
-5. [Complete Kubernetes Deployment Example](#complete-kubernetes-deployment-example)
-6. [Service Naming and Versioning Strategy](#service-naming-and-versioning-strategy)
-7. [Pure .NET Deployment Comparison](#pure-net-deployment-comparison)
-8. [What Kubernetes Adds: The Value Proposition](#what-kubernetes-adds-the-value-proposition)
+1. [eShop Microservices Architecture Overview](#eshop-microservices-architecture-overview)
+2. [Helm Chart Structure and Dependencies](#helm-chart-structure-and-dependencies)
+3. [Shared Infrastructure Pattern](#shared-infrastructure-pattern)
+4. [BaseChart Reusability Pattern](#basechart-reusability-pattern)
+5. [Service-Specific Configurations](#service-specific-configurations)
+6. [Deployment Architecture](#deployment-architecture)
+7. [Configuration Management](#configuration-management)
+8. [DevOps Deployment Workflow](#devops-deployment-workflow)
+9. [Service Discovery and Networking](#service-discovery-and-networking)
+10. [Production Deployment Guide](#production-deployment-guide)
 
-## Configuration Consistency: Aspire vs Production
+## eShop Microservices Architecture Overview
 
-### The Challenge: Configuration Drift
+### Complete Service Landscape
 
-A critical DevOps challenge is ensuring **configuration consistency** between:
-- **Local Development** (Aspire orchestration)  
-- **Production Deployment** (Helm charts + Kubernetes)
+The eShop application consists of **10 microservices** deployed using a **shared infrastructure pattern** in Kubernetes:
 
-**Common Problems:**
-- Aspire uses different RabbitMQ configuration than production Helm chart
-- Infrastructure service versions drift between environments
-- Connection strings, ports, and settings differ
-- Developers test against different setup than production
+| Service | Database | EventBus | Ingress | Purpose |
+|---------|----------|----------|---------|---------|
+| **`rabbitmq`** | ❌ | ✅ **(Provides)** | ❌ | Shared EventBus for all microservices |
+| **`identity-api`** | PostgreSQL | ✅ | ✅ | Authentication & authorization |
+| **`catalog-api-v2`** | PostgreSQL (pgvector) | ✅ | ✅ | Product catalog with AI features |
+| **`ordering-api`** | PostgreSQL | ✅ | ✅ | Order management |
+| **`order-processor`** | PostgreSQL | ✅ | ❌ | Background order processing |
+| **`basket-api`** | Redis | ✅ | ✅ | Shopping cart management |
+| **`payment-processor`** | ❌ | ✅ | ❌ | Background payment processing |
+| **`webhooks-api`** | PostgreSQL | ❌ | ✅ | Webhook management |
+| **`webhook-client`** | ❌ | ❌ | ✅ | Webhook testing client |
+| **`webapp`** | ❌ | ✅ | ✅ | Frontend application |
 
-### Component Classification: Aspire-Specific vs Production-Ready
+### Key Architectural Decisions
 
-| Component | Type | Aspire Dependency | Production Use |
-|-----------|------|------------------|----------------|
-| **`eShop.ServiceDefaults`** | ✅ Production Ready | None | Use directly in production |
-| **`EventBus`** | ✅ Production Ready | None | Use directly in production |
-| **`EventBusRabbitMQ`** | ⚠️ Hybrid | `Aspire.RabbitMQ.Client` | Needs configuration mapping |
-| **`eShop.AppHost`** | ❌ Development Only | Full Aspire | Never deploy to production |
+1. **Shared EventBus**: Single RabbitMQ deployment serves all microservices that need messaging
+2. **Database Isolation**: Each service requiring a database gets its own PostgreSQL instance  
+3. **Specialized Storage**: `basket-api` uses Redis for performance; `catalog-api-v2` uses pgvector for AI
+4. **Reusable Base**: All services use a common `basechart` for consistency and maintainability
+5. **Service Separation**: Background processors (`order-processor`, `payment-processor`) run without ingress
 
-### Configuration Extraction Strategy
+## Helm Chart Structure and Dependencies
 
-#### 1. Extract Infrastructure Configuration from Aspire
+### Chart Organization
 
-**Aspire Configuration (AppHost/Program.cs):**
-```csharp
-// What Aspire sets up locally
-var rabbitMq = builder.AddRabbitMQ("eventbus")
-    .WithLifetime(ContainerLifetime.Persistent);
-    
-var postgres = builder.AddPostgres("postgres")
-    .WithImage("ankane/pgvector")
-    .WithImageTag("latest")
-    .WithLifetime(ContainerLifetime.Persistent);
-
-var redis = builder.AddRedis("redis");
+```
+helm/charts/
+├── basechart/                 # Reusable base chart (published to GHCR)
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/
+│       ├── _helpers.tpl       # Shared template functions
+│       ├── deployment.yaml    # Application deployment
+│       ├── service.yaml       # Kubernetes service
+│       ├── ingress.yaml       # External access (conditional)
+│       ├── postgresql.yaml    # Database (conditional)
+│       └── serviceaccount.yaml # Service account (conditional)
+│
+├── rabbitmq/                  # Shared EventBus infrastructure
+│   ├── Chart.yaml
+│   └── values.yaml
+│
+├── identity-api/              # Individual microservice charts
+├── catalog-api-v2/
+├── ordering-api/
+├── order-processor/
+├── basket-api/
+├── payment-processor/
+├── webhooks-api/
+├── webhook-client/
+└── webapp/
 ```
 
-**Extract for Helm Chart:**
+### BaseChart Dependency Pattern
+
+All microservice charts follow the same dependency structure:
+
 ```yaml
-# values.yaml - Mirror Aspire configuration
-global:
-  infrastructure:
-    rabbitmq:
-      image: "rabbitmq:3-management"  # Match Aspire version
-      serviceName: "rabbitmq-service"
-      port: 5672
-      managementPort: 15672
-      config:
-        # Extract from Aspire's default configuration
-        RABBITMQ_DEFAULT_USER: "guest"
-        RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.6"
-        
-    postgres:
-      image: "ankane/pgvector"
-      tag: "latest"                   # Match Aspire exactly
-      serviceName: "postgres-service"
-      port: 5432
-      databases:
-        - catalogdb
-        - identitydb
-        - orderingdb
-        - webhooksdb
-        
-    redis:
-      image: "redis:7-alpine"         # Match Aspire version
-      serviceName: "redis-service"
-      port: 6379
+# Example: helm/charts/identity-api/Chart.yaml
+apiVersion: v2
+name: identity-api
+version: 0.1.0
+description: eShop Identity API microservice using basechart dependency
+type: application
+appVersion: "1.0.0"
+dependencies:
+  - name: basechart
+    version: "1.0.0"
+    repository: "oci://ghcr.io/saadisfy"
+    alias: base
 ```
 
-#### 2. Application Configuration Consistency
+## Shared Infrastructure Pattern
 
-**Aspire Injects (Development):**
-```csharp
-// AppHost automatically sets these
-var basketApi = builder.AddProject<Projects.Basket_API>("basket-api")
-    .WithReference(redis)
-    .WithReference(rabbitMq)
-    .WithEnvironment("Identity__Url", identityEndpoint);
-```
+### RabbitMQ as Shared EventBus
 
-**Helm Chart Equivalent (Production):**
+The eShop architecture uses a **single, shared RabbitMQ deployment** that serves as the EventBus for all microservices requiring message-based communication.
+
+#### Standalone RabbitMQ Chart
+
 ```yaml
-# ConfigMap - Mirror Aspire's injected configuration
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: eshop-service-config
-data:
-  # Mirror Aspire's automatic service discovery
-  ServiceEndpoints__IdentityApi: "http://identity-service"
-  
-  # Mirror Aspire's infrastructure references
-  ConnectionStrings__Redis: "redis-service:6379"
-  ConnectionStrings__EventBus: "amqp://rabbitmq-service:5672"
-  
-  # Mirror Aspire's EventBus configuration
-  EventBus__SubscriptionClientName: "Basket"  # Must match Aspire
-  EventBus__RetryCount: "10"                  # Must match Aspire
+# helm/charts/rabbitmq/Chart.yaml
+apiVersion: v2
+name: rabbitmq
+version: 1.0.0
+description: Shared RabbitMQ EventBus for eShop microservices
+type: application
+appVersion: "3.13.6"
+dependencies:
+  - name: rabbitmq
+    version: "14.6.6"
+    repository: "https://charts.bitnami.com/bitnami"
 ```
 
-### RabbitMQ Configuration Consistency Example
-
-#### Problem: Different RabbitMQ Setup
-
-**Aspire (Local):**
-```csharp
-var rabbitMq = builder.AddRabbitMQ("eventbus")
-    .WithLifetime(ContainerLifetime.Persistent);
-// Uses default RabbitMQ configuration
-```
-
-**Helm Chart (Production) - Wrong Approach:**
 ```yaml
-# This might use different configuration!
+# helm/charts/rabbitmq/values.yaml
 rabbitmq:
-  image: "bitnami/rabbitmq:latest"  # Different image!
+  # Authentication settings
   auth:
-    username: "admin"                # Different user!
-    password: "CHANGEME"   # Different auth!
-```
-
-#### Solution: Configuration Extraction and Mapping
-
-**Step 1: Document Aspire's Actual Configuration**
-```yaml
-# aspire-config-mapping.yaml - Document what Aspire actually uses
-aspire:
-  rabbitmq:
-    image: "rabbitmq:3-management"
+    username: "user"
+    password: "CHANGEME"
+    erlangCookie: "CHANGEME"
+  
+  # Service configuration
+  service:
     ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: "guest"
-      RABBITMQ_DEFAULT_PASS: "guest"
-      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.6"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-```
-
-**Step 2: Mirror in Helm Chart**
-```yaml
-# values.yaml
-global:
-  infrastructure:
-    rabbitmq:
-      # EXACTLY match Aspire configuration
-      image: "rabbitmq:3-management"
-      serviceName: "rabbitmq-service"
-      auth:
-        username: "guest"      # Match Aspire
-        password: "guest"      # Match Aspire
-      config:
-        memoryHighWatermark: "0.6"  # Match Aspire
-      persistence:
-        enabled: true
-        size: 8Gi
-```
-
-**Step 3: Validate Connection String Consistency**
-```yaml
-# Both environments must use same connection pattern
-# Aspire generates: amqp://guest:guest@localhost:5672
-# Production uses:  amqp://guest:guest@rabbitmq-service:5672
-# Only the hostname differs!
-
-# ConfigMap
-ConnectionStrings__EventBus: "amqp://{{ .Values.global.infrastructure.rabbitmq.auth.username }}:{{ .Values.global.infrastructure.rabbitmq.auth.password }}@{{ .Values.global.infrastructure.rabbitmq.serviceName }}:5672"
-```
-
-### Infrastructure Version Consistency
-
-#### Create Aspire Configuration Export
-
-**Step 1: Add Configuration Documentation to AppHost**
-```csharp
-// AppHost/Infrastructure.cs - Document for DevOps
-public static class InfrastructureConfig
-{
-    // Export configuration for Helm charts
-    public static class Versions
-    {
-        public const string PostgreSQL = "ankane/pgvector:latest";
-        public const string RabbitMQ = "rabbitmq:3-management";
-        public const string Redis = "redis:7-alpine";
-    }
-    
-    public static class Ports
-    {
-        public const int PostgreSQL = 5432;
-        public const int RabbitMQ = 5672;
-        public const int RabbitMQManagement = 15672;
-        public const int Redis = 6379;
-    }
-}
-```
-
-**Step 2: Use in Both Aspire and Helm**
-```csharp
-// AppHost/Program.cs - Use constants
-var postgres = builder.AddPostgres("postgres")
-    .WithImage(InfrastructureConfig.Versions.PostgreSQL);
-```
-
-```yaml
-# values.yaml - Import same constants
-global:
-  infrastructure:
-    postgres:
-      image: "ankane/pgvector"
-      tag: "latest"
-      port: 5432
-```
-
-### DevOps Workflow for Configuration Consistency
-
-#### 1. Configuration Change Process
-```bash
-# When infrastructure configuration changes:
-# 1. Update AppHost configuration
-# 2. Export to Helm values
-# 3. Test both environments
-# 4. Deploy together
-
-# Example: Upgrade RabbitMQ
-git checkout feature/rabbitmq-upgrade
-# Edit AppHost to use rabbitmq:3.12-management
-# Edit values.yaml to use rabbitmq:3.12-management
-# Test locally with Aspire
-# Test staging with Helm
-# Deploy to production
-```
-
-#### 2. Validation Scripts
-```bash
-# validate-config-consistency.sh
-#!/bin/bash
-
-# Extract Aspire configuration
-aspire_rabbitmq_image=$(grep -o 'rabbitmq:[^"]*' src/eShop.AppHost/Program.cs)
-aspire_postgres_image=$(grep -o 'ankane/pgvector:[^"]*' src/eShop.AppHost/Program.cs)
-
-# Extract Helm configuration  
-helm_rabbitmq_image=$(yq '.global.infrastructure.rabbitmq.image' helm/values.yaml)
-helm_postgres_image=$(yq '.global.infrastructure.postgres.image' helm/values.yaml)
-
-# Compare
-if [[ "$aspire_rabbitmq_image" != "$helm_rabbitmq_image" ]]; then
-  echo "ERROR: RabbitMQ image mismatch!"
-  echo "Aspire: $aspire_rabbitmq_image"
-  echo "Helm: $helm_rabbitmq_image"
-  exit 1
-fi
-
-echo "✅ Configuration consistency validated"
-```
-
-## DevOps-Friendly Service Discovery
-
-### The Problem with Hardcoded Service Names
-
-**Bad Practice (Hardcoded in Application):**
-```csharp
-// This requires changing application code when service names change
-builder.Services.AddHttpClient<CatalogService>(o => o.BaseAddress = new("http://catalog-api"))
-    .AddApiVersion(2.0);
-```
-
-**DevOps Challenge:**
-- Service names hardcoded in application code
-- Changes require rebuilding containers
-- No single source of truth for service naming
-- Helm charts must match exact application expectations
-
-### DevOps-Friendly Solution: Environment Variable Based Discovery
-
-**Application Code (Environment Variable Driven):**
-```csharp
-// In WebApp/Extensions/Extensions.cs - DevOps Friendly Version
-public static void AddApplicationServices(this IHostApplicationBuilder builder)
-{
-    // Get service endpoints from environment variables - DevOps controls these
-    var catalogApiUrl = builder.Configuration["ServiceEndpoints:CatalogApi"] 
-        ?? throw new InvalidOperationException("CatalogApi endpoint not configured");
-    var basketApiUrl = builder.Configuration["ServiceEndpoints:BasketApi"] 
-        ?? throw new InvalidOperationException("BasketApi endpoint not configured");
-    var orderingApiUrl = builder.Configuration["ServiceEndpoints:OrderingApi"] 
-        ?? throw new InvalidOperationException("OrderingApi endpoint not configured");
-    var identityApiUrl = builder.Configuration["ServiceEndpoints:IdentityApi"] 
-        ?? throw new InvalidOperationException("IdentityApi endpoint not configured");
-
-    // Configure HTTP clients with environment-provided URLs
-    builder.Services.AddHttpClient<CatalogService>(o => o.BaseAddress = new(catalogApiUrl))
-        .AddApiVersion(2.0)
-        .AddAuthToken();
-
-    builder.Services.AddHttpClient<OrderingService>(o => o.BaseAddress = new(orderingApiUrl))
-        .AddApiVersion(1.0)
-        .AddAuthToken();
-
-    builder.Services.AddGrpcClient<Basket.BasketClient>(o => o.Address = new(basketApiUrl))
-        .AddAuthToken();
-}
-```
-
-**Application Configuration (appsettings.json) - Fallback Only:**
-```json
-{
-  "ServiceEndpoints": {
-    "CatalogApi": "http://localhost:8080",
-    "BasketApi": "http://localhost:8081", 
-    "OrderingApi": "http://localhost:8082",
-    "IdentityApi": "http://localhost:8083"
-  }
-}
-```
-
-## Environment Variable Based Configuration
-
-### 1. Configuration Hierarchy for Service Discovery
-
-.NET Configuration follows this priority order:
-1. **Environment Variables** (Highest Priority - DevOps Controls)
-2. **appsettings.{Environment}.json**
-3. **appsettings.json** (Fallback for local development)
-
-```bash
-# Environment variables override everything
-ServiceEndpoints__CatalogApi=http://catalog-service
-ServiceEndpoints__BasketApi=http://basket-service
-ServiceEndpoints__OrderingApi=http://ordering-service
-ServiceEndpoints__IdentityApi=http://identity-service
-```
-
-### 2. Kubernetes ConfigMap with Environment Variables
-
-```yaml
-# ConfigMap - Single Source of Truth for Service Configuration
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: eshop-service-config
-  namespace: eshop-production
-data:
-  # Service Discovery - DevOps Controls These Names
-  ServiceEndpoints__CatalogApi: "http://catalog-service"
-  ServiceEndpoints__BasketApi: "http://basket-service"
-  ServiceEndpoints__OrderingApi: "http://ordering-service"
-  ServiceEndpoints__IdentityApi: "http://identity-service"
+      amqp: 5672  # AMQP (Advanced Message Queuing Protocol)
   
-  # Infrastructure Services
-  ConnectionStrings__Redis: "redis-service:6379"
-  ConnectionStrings__EventBus: "amqp://rabbitmq-service:5672"
-  
-  # Application Settings
-  ASPNETCORE_ENVIRONMENT: "Production"
-  Logging__LogLevel__Default: "Information"
-  EventBus__SubscriptionClientName: "WebApp"
-
----
-# Secrets for sensitive data
-apiVersion: v1
-kind: Secret
-metadata:
-  name: eshop-secrets
-  namespace: eshop-production
-type: Opaque
-stringData:
-  ConnectionStrings__CatalogDB: "Host=postgres-service;Database=catalogdb;Username=sa;Password=YourStrongPassword!"
-  ConnectionStrings__IdentityDB: "Host=postgres-service;Database=identitydb;Username=sa;Password=YourStrongPassword!"
-  ConnectionStrings__OrderingDB: "Host=postgres-service;Database=orderingdb;Username=sa;Password=YourStrongPassword!"
+  # Persistence and resources
+  persistence:
+    enabled: true
+    size: 8Gi
+  resources:
+    limits:
+      cpu: 375m
+      memory: 384Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 ```
 
-## Helm Chart Structure for Microservices
+### Services Using Shared EventBus
 
-### 1. Parent Helm Chart Structure
+The following services connect to the shared RabbitMQ deployment:
 
-```
-eshop-microservices/
-├── Chart.yaml
-├── values.yaml                 # Global configuration
-├── templates/
-│   ├── _helpers.tpl           # Shared templates
-│   ├── configmap.yaml         # Global config
-│   ├── secrets.yaml           # Global secrets
-│   └── ingress.yaml           # Global ingress
-└── charts/                    # Subcharts for each service
-    ├── catalog-api/
-    │   ├── Chart.yaml
-    │   ├── values.yaml
-    │   └── templates/
-    │       ├── deployment.yaml
-    │       └── service.yaml
-    ├── basket-api/
-    │   ├── Chart.yaml
-    │   ├── values.yaml
-    │   └── templates/
-    │       ├── deployment.yaml
-    │       └── service.yaml
-    ├── webapp/
-    └── infrastructure/        # Redis, RabbitMQ, etc.
-```
+- **`identity-api`** - Subscription: "Identity"
+- **`catalog-api-v2`** - Subscription: "Catalog" 
+- **`ordering-api`** - Subscription: "Ordering"
+- **`order-processor`** - Subscription: "OrderProcessor"
+- **`basket-api`** - Subscription: "Basket"
+- **`payment-processor`** - Subscription: "Payment"
+- **`webapp`** - Subscription: "WebApp"
 
-### 2. Global Values.yaml - Single Source of Truth
+### Database Isolation Strategy
+
+Each service requiring a database gets its **own PostgreSQL instance**:
 
 ```yaml
-# eshop-microservices/values.yaml
-global:
-  # Service Naming Convention - DevOps Controls
-  serviceNames:
-    catalogApi: "catalog-service"
-    basketApi: "basket-service" 
-    orderingApi: "ordering-service"
-    identityApi: "identity-service"
-    webapp: "webapp-service"
-    
-  # Infrastructure Services
-  infrastructure:
-    redis:
-      serviceName: "redis-service"
-      port: 6379
-    rabbitmq:
-      serviceName: "rabbitmq-service"
-      port: 5672
-    postgres:
-      serviceName: "postgres-service"
-      port: 5432
-      
-  # Container Registry
-  imageRegistry: "ghcr.io/saadisfy/eshop"
-  imageTag: "1.0.0"
-  
-  # Namespace
-  namespace: "eshop-production"
-
-# Service-specific configurations
-catalogApi:
+# Example database configuration per service
+postgresql:
   enabled: true
-  replicaCount: 3
+  serviceName: ""  # Defaults to: {{ .Release.Name }}-postgresql
+  auth:
+    database: "identitydb"      # Service-specific database name
+    username: "postgres"
+    password: "CHANGEME"  # Service-specific password
+```
+
+## BaseChart Reusability Pattern
+
+### Generic Base Chart Design
+
+The `basechart` provides a **reusable foundation** for all eShop microservices, with conditional components that can be enabled/disabled per service:
+
+```yaml
+# helm/charts/basechart/values.yaml (key sections)
+# Application configuration
+application:
+  name: "my-application"
+
+# Image configuration
+image:
+  registry: "ghcr.io/saadisfy/eshop"
+  repository: "my-service"
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+  pullSecret: "ghcr-secret"
+
+# Conditional PostgreSQL
+postgresql:
+  enabled: false  # Enable per service
+  auth:
+    database: "mydb"
+    username: "postgres"
+    password: "CHANGEME"
+
+# Conditional Redis  
+redis:
+  enabled: false  # Enable per service
+
+# External services configuration
+sharedServices:
+  rabbitmq:
+    enabled: false  # Enable per service
+    serviceName: ""  # Auto-resolved
+    port: 5672
+    username: "user"
+    password: "CHANGEME"
+    subscriptionClientName: "DefaultClient"
+```
+
+### Service-Specific Overrides
+
+Each microservice chart overrides only the necessary values:
+
+```yaml
+# helm/charts/identity-api/values.yaml
+base:
+  application:
+    name: "identity-api"
+  
   image:
-    repository: catalog-api
-    tag: "" # Uses global.imageTag if empty
+    repository: "identity-api"
+  
+  # Enable PostgreSQL for this service
+  postgresql:
+    enabled: true
+    auth:
+      database: "identitydb"
+      password: "CHANGEME"
+  
+  # Enable EventBus for this service
+  sharedServices:
+    rabbitmq:
+      enabled: true
+      subscriptionClientName: "Identity"
+  
+  # Service-specific configuration
+  config:
+    appSettings:
+      Identity__Issuer: "https://identity-api.saadisfy.me"
+```
+
+## Service-Specific Configurations
+
+### Complete Service Configuration Matrix
+
+| Service | PostgreSQL DB | Redis | EventBus | Ingress | Special Features |
+|---------|---------------|--------|----------|---------|------------------|
+| **identity-api** | `identitydb` | ❌ | Identity | ✅ | JWT issuer |
+| **catalog-api-v2** | `catalogdb` (pgvector) | ❌ | Catalog | ✅ | AI/Vector search |
+| **ordering-api** | `orderingdb` | ❌ | Ordering | ✅ | Order management |
+| **order-processor** | `orderprocessordb` | ❌ | OrderProcessor | ❌ | Background worker |
+| **basket-api** | ❌ | ✅ | Basket | ✅ | Redis cache |
+| **payment-processor** | ❌ | ❌ | Payment | ❌ | Background worker |
+| **webhooks-api** | `webhooksdb` | ❌ | ❌ | ✅ | No EventBus |
+| **webhook-client** | ❌ | ❌ | ❌ | ✅ | Direct HTTP |
+| **webapp** | ❌ | ❌ | WebApp | ✅ | Frontend |
+
+### Example Configurations
+
+#### Full-Stack Service (PostgreSQL + EventBus + Ingress)
+```yaml
+# identity-api/values.yaml
+base:
+  postgresql:
+    enabled: true
+    auth:
+      database: "identitydb"
+      password: "CHANGEME"
+  
+  sharedServices:
+    rabbitmq:
+      enabled: true
+      subscriptionClientName: "Identity"
+  
+  ingress:
+    enabled: true
+    hosts:
+      - host: "identity-api.saadisfy.me"
+```
+
+#### Background Worker (PostgreSQL + EventBus, No Ingress)
+```yaml
+# order-processor/values.yaml  
+base:
+  postgresql:
+    enabled: true
+    auth:
+      database: "orderprocessordb"
+      password: "CHANGEME"
+  
+  sharedServices:
+    rabbitmq:
+      enabled: true
+      subscriptionClientName: "OrderProcessor"
+  
+  ingress:
+    enabled: false  # Background service
+  
+  livenessProbe:
+    enabled: false  # No HTTP endpoints
+```
+
+#### Cache-Based Service (Redis + EventBus + Ingress)
+```yaml
+# basket-api/values.yaml
+base:
+  postgresql:
+    enabled: false  # Uses Redis instead
+  
+  redis:
+    enabled: true
+    serviceName: ""  # Defaults to {{ .Release.Name }}-redis
+    port: 6379
+  
+  sharedServices:
+    rabbitmq:
+      enabled: true
+      subscriptionClientName: "Basket"
+```
+
+## Deployment Architecture
+
+### Physical Deployment Topology
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Kubernetes Cluster                          │
+│                                                                 │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐ │
+│  │    Frontend     │    │   API Gateway   │    │ Background  │ │
+│  │   (Ingress)     │    │   (Ingress)     │    │ Workers     │ │
+│  │                 │    │                 │    │             │ │
+│  │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────┐ │ │
+│  │ │   webapp    │ │    │ │identity-api │ │    │ │order-   │ │ │
+│  │ └─────────────┘ │    │ │catalog-api  │ │    │ │processor│ │ │
+│  │                 │    │ │ordering-api │ │    │ │payment- │ │ │
+│  │ ┌─────────────┐ │    │ │basket-api   │ │    │ │processor│ │ │
+│  │ │webhook-     │ │    │ │webhooks-api │ │    │ └─────────┘ │ │
+│  │ │client       │ │    │ └─────────────┘ │    └─────────────┘ │
+│  │ └─────────────┘ │    └─────────────────┘                    │
+│  └─────────────────┘                                           │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                Shared Infrastructure                        │ │
+│  │                                                             │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │ │
+│  │  │  RabbitMQ   │ │PostgreSQL   │ │    Redis    │           │ │
+│  │  │ (EventBus)  │ │(per service)│ │(basket-api) │           │ │
+│  │  │             │ │             │ │             │           │ │
+│  │  │ Port: 5672  │ │ Port: 5432  │ │ Port: 6379  │           │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘           │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Service Communication Patterns
+
+#### 1. EventBus Communication (Asynchronous)
+```
+identity-api ──┐
+catalog-api ───┤
+ordering-api ──┤── EventBus (RabbitMQ) ──┤── order-processor
+basket-api ────┤                         ├── payment-processor  
+webapp ────────┘                         └── [other subscribers]
+```
+
+#### 2. Direct HTTP Communication (Synchronous)
+```
+webapp ── HTTP ──→ identity-api (auth)
+webapp ── HTTP ──→ catalog-api (products)
+webapp ── HTTP ──→ ordering-api (orders)
+webapp ── HTTP ──→ basket-api (cart)
+
+webhook-client ── HTTP ──→ webhooks-api
+```
+
+#### 3. Database Access Patterns
+```
+identity-api ──→ PostgreSQL (identitydb)
+catalog-api ───→ PostgreSQL (catalogdb + pgvector)
+ordering-api ──→ PostgreSQL (orderingdb)
+order-processor → PostgreSQL (orderprocessordb)
+webhooks-api ──→ PostgreSQL (webhooksdb)
+
+basket-api ────→ Redis (cache)
+```
+
+## DevOps Deployment Workflow
+
+### Deployment Order and Dependencies
+
+#### 1. Infrastructure First (Shared Services)
+```bash
+# Deploy shared EventBus first
+helm install rabbitmq helm/charts/rabbitmq \
+  --namespace eshop-production \
+  --create-namespace
+
+# Verify RabbitMQ is ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=rabbitmq \
+  --namespace eshop-production --timeout=300s
+```
+
+#### 2. Core Services (With Dependencies)
+```bash
+# Deploy services with databases and EventBus
+helm install identity-api helm/charts/identity-api \
+  --namespace eshop-production
+
+helm install catalog-api helm/charts/catalog-api-v2 \
+  --namespace eshop-production
+
+helm install ordering-api helm/charts/ordering-api \
+  --namespace eshop-production
+
+# Background processors
+helm install order-processor helm/charts/order-processor \
+  --namespace eshop-production
+
+helm install payment-processor helm/charts/payment-processor \
+  --namespace eshop-production
+```
+
+#### 3. Specialized Services
+```bash
+# Redis-based service
+helm install basket-api helm/charts/basket-api \
+  --namespace eshop-production
+
+# Independent services (no EventBus)
+helm install webhooks-api helm/charts/webhooks-api \
+  --namespace eshop-production
+
+helm install webhook-client helm/charts/webhook-client \
+  --namespace eshop-production
+```
+
+#### 4. Frontend Last
+```bash
+# Deploy frontend after all APIs are ready
+helm install webapp helm/charts/webapp \
+  --namespace eshop-production
+```
+
+### Environment-Specific Deployment
+
+#### Development Environment
+```bash
+# Use local development values
+helm install eshop-dev helm/charts/identity-api \
+  --namespace eshop-dev \
+  --set base.image.tag=dev-latest \
+  --set base.ingress.hosts[0].host=identity-api-dev.local \
+  --set base.postgresql.auth.password=devpassword
+```
+
+#### Staging Environment
+```bash
+# Use staging-specific configuration
+helm install eshop-staging helm/charts/identity-api \
+  --namespace eshop-staging \
+  --set base.image.tag=1.0.0-rc1 \
+  --set base.ingress.hosts[0].host=identity-api-staging.saadisfy.me \
+  --set base.resources.requests.cpu=100m
+```
+
+#### Production Environment
+```bash
+# Use production configuration with high availability
+helm install eshop-prod helm/charts/identity-api \
+  --namespace eshop-production \
+  --set base.image.tag=1.0.0 \
+  --set base.replicaCount=3 \
+  --set base.resources.requests.cpu=250m \
+  --set base.resources.limits.cpu=500m
+```
+
+## Configuration Management
+
+### Environment Variable Based Configuration
+
+All eShop services use **environment variables** for configuration, allowing DevOps teams to control service behavior without rebuilding containers.
+
+#### BaseChart Configuration Template
+
+```yaml
+# basechart/templates/deployment.yaml
+env:
+# Database connections (if enabled)
+{{- if .Values.postgresql.enabled }}
+- name: ConnectionStrings__{{ .Values.postgresql.auth.database }}
+  value: {{ include "application.postgresqlConnectionString" . }}
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+- name: ConnectionStrings__Redis
+  value: "{{ .Values.redis.serviceName | default (printf "%s-redis" .Release.Name) }}:{{ .Values.redis.port }}"
+{{- end }}
+
+# EventBus configuration (if enabled)
+{{- if .Values.sharedServices.rabbitmq.enabled }}
+- name: EventBus__Connection
+  value: "amqp://{{ .Values.sharedServices.rabbitmq.serviceName | default (printf "%s-rabbitmq" .Release.Name) }}:{{ .Values.sharedServices.rabbitmq.port }}"
+- name: EventBus__UserName
+  value: {{ .Values.sharedServices.rabbitmq.username }}
+- name: EventBus__Password
+  value: {{ .Values.sharedServices.rabbitmq.password }}
+- name: EventBus__SubscriptionClientName
+  value: {{ .Values.sharedServices.rabbitmq.subscriptionClientName }}
+{{- end }}
+
+# Custom application settings
+{{- range $key, $value := .Values.config.appSettings }}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{- end }}
+```
+
+#### Service Name Resolution
+
+Services connect to shared infrastructure using **dynamic service name resolution**:
+
+```yaml
+# Each service connects to shared RabbitMQ
+sharedServices:
+  rabbitmq:
+    serviceName: ""  # Empty = auto-resolve to shared RabbitMQ
+    # Resolves to: external rabbitmq service discovery
+```
+
+## Service Discovery and Networking
+
+### Kubernetes-Native Service Discovery
+
+Services discover each other using **Kubernetes DNS**:
+
+```yaml
+# webapp communicates with APIs via service names
+config:
+  appSettings:
+    # Service endpoints resolve via Kubernetes DNS
+    IdentityApiClient: "http://identity-api-identity-api"
+    CatalogApiClient: "http://catalog-api-catalog-api-v2" 
+    OrderingApiClient: "http://ordering-api-ordering-api"
+    BasketApiClient: "http://basket-api-basket-api"
+```
+
+### External Access via Ingress
+
+```yaml
+# Each API service gets external access
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: "identity-api.saadisfy.me"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: "identity-api-tls"
+      hosts:
+        - "identity-api.saadisfy.me"
+```
+
+## Production Deployment Guide
+
+### Complete Production Deployment Script
+
+```bash
+#!/bin/bash
+# deploy-eshop-production.sh
+
+set -e
+
+NAMESPACE="eshop-production"
+echo "🚀 Deploying eShop to $NAMESPACE"
+
+# Create namespace
+kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+# 1. Deploy shared infrastructure first
+echo "📦 Deploying shared RabbitMQ..."
+helm upgrade --install rabbitmq helm/charts/rabbitmq \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+# 2. Deploy core services with databases
+echo "🔐 Deploying Identity API..."
+helm upgrade --install identity-api helm/charts/identity-api \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "📋 Deploying Catalog API..."
+helm upgrade --install catalog-api helm/charts/catalog-api-v2 \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "📦 Deploying Ordering API..."
+helm upgrade --install ordering-api helm/charts/ordering-api \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "🛒 Deploying Basket API..."
+helm upgrade --install basket-api helm/charts/basket-api \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+# 3. Deploy background processors
+echo "⚙️ Deploying Order Processor..."
+helm upgrade --install order-processor helm/charts/order-processor \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "💳 Deploying Payment Processor..."
+helm upgrade --install payment-processor helm/charts/payment-processor \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+# 4. Deploy webhook services
+echo "🪝 Deploying Webhooks API..."
+helm upgrade --install webhooks-api helm/charts/webhooks-api \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "🔗 Deploying Webhook Client..."
+helm upgrade --install webhook-client helm/charts/webhook-client \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+# 5. Deploy frontend last
+echo "🌐 Deploying WebApp..."
+helm upgrade --install webapp helm/charts/webapp \
+  --namespace $NAMESPACE \
+  --wait --timeout=10m
+
+echo "✅ eShop deployment complete!"
+echo "🌍 Access the application at: https://webapp.saadisfy.me"
+```
+
+### Monitoring and Verification
+
+```bash
+# Check all deployments
+kubectl get deployments -n eshop-production
+
+# Check all services
+kubectl get services -n eshop-production
+
+# Check ingress endpoints
+kubectl get ingress -n eshop-production
+
+# View logs for troubleshooting
+kubectl logs -l app.kubernetes.io/name=identity-api -n eshop-production
+kubectl logs -l app.kubernetes.io/name=catalog-api -n eshop-production
+
+# Check RabbitMQ management UI
+kubectl port-forward svc/rabbitmq 15672:15672 -n eshop-production
+# Access: http://localhost:15672 (user/password)
+```
+
+### Rolling Updates and Versioning
+
+```bash
+# Update specific service to new version
+helm upgrade identity-api helm/charts/identity-api \
+  --namespace eshop-production \
+  --set base.image.tag=1.1.0 \
+  --wait
+
+# Rollback if needed
+helm rollback identity-api 1 --namespace eshop-production
+
+# Update multiple services
+for service in identity-api catalog-api ordering-api basket-api; do
+  helm upgrade $service helm/charts/$service \
+    --namespace eshop-production \
+    --set base.image.tag=1.1.0 \
+    --wait
+done
+```
+
+### High Availability Configuration
+
+```yaml
+# production-values.yaml
+base:
+  replicaCount: 3
+  
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "250m"
+      cpu: 250m
+      memory: 256Mi
     limits:
-      memory: "512Mi"
-      cpu: "500m"
-
-basketApi:
-  enabled: true
-  replicaCount: 3
-  image:
-    repository: basket-api
-    tag: ""
-
-webapp:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: webapp
-    tag: ""
-  # WebApp needs to know about all other services
-  serviceEndpoints:
-    catalog: true
-    basket: true
-    ordering: true
-    identity: true
-```
-
-### 3. Service-Specific Helm Templates
-
-**WebApp Deployment Template (`charts/webapp/templates/deployment.yaml`):**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Values.global.serviceNames.webapp }}
-  namespace: {{ .Values.global.namespace }}
-spec:
-  replicas: {{ .Values.webapp.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ .Values.global.serviceNames.webapp }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.global.serviceNames.webapp }}
-    spec:
-      containers:
-      - name: webapp
-        image: "{{ .Values.global.imageRegistry }}/{{ .Values.webapp.image.repository }}:{{ .Values.webapp.image.tag | default .Values.global.imageTag }}"
-        ports:
-        - containerPort: 8080
-        
-        # Environment variables from global ConfigMap
-        envFrom:
-        - configMapRef:
-            name: eshop-service-config
-        
-        # Service-specific environment variables
-        env:
-        {{- if .Values.webapp.serviceEndpoints.catalog }}
-        - name: ServiceEndpoints__CatalogApi
-          value: "http://{{ .Values.global.serviceNames.catalogApi }}"
-        {{- end }}
-        {{- if .Values.webapp.serviceEndpoints.basket }}
-        - name: ServiceEndpoints__BasketApi
-          value: "http://{{ .Values.global.serviceNames.basketApi }}"
-        {{- end }}
-        {{- if .Values.webapp.serviceEndpoints.ordering }}
-        - name: ServiceEndpoints__OrderingApi
-          value: "http://{{ .Values.global.serviceNames.orderingApi }}"
-        {{- end }}
-        {{- if .Values.webapp.serviceEndpoints.identity }}
-        - name: ServiceEndpoints__IdentityApi
-          value: "http://{{ .Values.global.serviceNames.identityApi }}"
-        {{- end }}
-        
-        # Database connections from secrets
-        - name: ConnectionStrings__CatalogDB
-          valueFrom:
-            secretKeyRef:
-              name: eshop-secrets
-              key: ConnectionStrings__CatalogDB
-              
-        # Health checks
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /health  
-            port: 8080
-          initialDelaySeconds: 10
-            
-        resources:
-          {{- toYaml .Values.webapp.resources | nindent 12 }}
-```
-
-**Service Template (`charts/webapp/templates/service.yaml`):**
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.global.serviceNames.webapp }}
-  namespace: {{ .Values.global.namespace }}
-spec:
-  selector:
-    app: {{ .Values.global.serviceNames.webapp }}
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  type: ClusterIP
-```
-
-## Service Naming and Versioning Strategy
-
-### 1. Single Source of Truth Pattern
-
-**Problem:** Service names scattered across:
-- Application code
-- Kubernetes manifests  
-- Helm values
-- ConfigMaps
-
-**Solution:** Centralized naming in Helm values:
-
-```yaml
-# values.yaml - SINGLE SOURCE OF TRUTH
-global:
-  serviceNames:
-    # Logical name -> Kubernetes service name mapping
-    catalogApi: "catalog-service-v2"    # Change here to update everywhere
-    basketApi: "basket-service"
-    orderingApi: "ordering-service-v1"
-    identityApi: "identity-service"
-```
-
-### 2. Helm Helper Templates for Consistency
-
-**`templates/_helpers.tpl`:**
-```yaml
-{{/*
-Generate service endpoint URL
-*/}}
-{{- define "eshop.serviceUrl" -}}
-{{- $serviceName := index .Values.global.serviceNames .serviceName -}}
-http://{{ $serviceName }}
-{{- end }}
-
-{{/*
-Generate full image name
-*/}}
-{{- define "eshop.image" -}}
-{{ .Values.global.imageRegistry }}/{{ .image.repository }}:{{ .image.tag | default .Values.global.imageTag }}
-{{- end }}
-```
-
-**Usage in Templates:**
-```yaml
-env:
-- name: ServiceEndpoints__CatalogApi
-  value: {{ include "eshop.serviceUrl" (dict "Values" .Values "serviceName" "catalogApi") }}
-- name: ServiceEndpoints__BasketApi  
-  value: {{ include "eshop.serviceUrl" (dict "Values" .Values "serviceName" "basketApi") }}
-```
-
-### 3. Version Management Strategy
-
-**Microservice Versioning in Helm:**
-```yaml
-# values.yaml
-global:
-  imageTag: "1.2.0"  # Default version for all services
+      cpu: 500m
+      memory: 512Mi
   
-# Override specific service versions
-catalogApi:
-  image:
-    tag: "1.3.0"  # Catalog API uses newer version
-
-basketApi:
-  image:
-    tag: "1.1.5"  # Basket API uses older stable version
+  postgresql:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: "fast-ssd"
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
 ```
 
-**Service Name Versioning:**
+### Security Considerations
+
 ```yaml
-global:
-  serviceNames:
-    # Include version in service name for breaking changes
-    catalogApi: "catalog-service-v2" 
-    basketApi: "basket-service-v1"
-    # Or use blue-green deployment pattern
-    catalogApiBlue: "catalog-service-blue"
-    catalogApiGreen: "catalog-service-green"
+# Secure production configuration
+base:
+  serviceAccount:
+    create: true
+    annotations:
+      # AWS IAM role annotation
+      eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/eShopServiceRole
+  
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+  
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
 ```
-
-## Complete Kubernetes Deployment Example
-
-### 1. Infrastructure Services
-
-**Postgres StatefulSet:**
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: {{ .Values.global.namespace }}
-spec:
-  serviceName: {{ .Values.global.infrastructure.postgres.serviceName }}
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-      - name: postgres
-        image: ankane/pgvector:latest
-        ports:
-        - containerPort: {{ .Values.global.infrastructure.postgres.port }}
-        env:
-        - name: POSTGRES_DB
-          value: eShopDB
-        - name: POSTGRES_USER
-          value: sa
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: eshop-secrets
-              key: postgres-password
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 10Gi
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.global.infrastructure.postgres.serviceName }}
-  namespace: {{ .Values.global.namespace }}
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: {{ .Values.global.infrastructure.postgres.port }}
-      targetPort: {{ .Values.global.infrastructure.postgres.port }}
-  type: ClusterIP
-```
 
-### 2. Microservice Deployment with Environment Variables
+## 🏆 **Architecture Summary**
 
-**Catalog API Deployment:**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Values.global.serviceNames.catalogApi }}
-  namespace: {{ .Values.global.namespace }}
-spec:
-  replicas: {{ .Values.catalogApi.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ .Values.global.serviceNames.catalogApi }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.global.serviceNames.catalogApi }}
-    spec:
-      containers:
-      - name: catalog-api
-        image: "{{ .Values.global.imageRegistry }}/{{ .Values.catalogApi.image.repository }}:{{ .Values.catalogApi.image.tag | default .Values.global.imageTag }}"
-        ports:
-        - containerPort: 8080
-        
-        # Global configuration from ConfigMap
-        envFrom:
-        - configMapRef:
-            name: eshop-service-config
-            
-        # Service-specific configuration
-        env:
-        - name: ConnectionStrings__CatalogDB
-          valueFrom:
-            secretKeyRef:
-              name: eshop-secrets
-              key: ConnectionStrings__CatalogDB
-        - name: ConnectionStrings__EventBus
-          value: "amqp://{{ .Values.global.infrastructure.rabbitmq.serviceName }}:{{ .Values.global.infrastructure.rabbitmq.port }}"
-        
-        # Health checks
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 10
-            
-        resources:
-          {{- toYaml .Values.catalogApi.resources | nindent 12 }}
-```
+The eShop Kubernetes deployment provides:
 
-### 3. Deployment Commands
+✅ **Shared Infrastructure**: Single RabbitMQ for all messaging  
+✅ **Database Isolation**: Each service has dedicated storage  
+✅ **Reusable Patterns**: BaseChart eliminates duplication  
+✅ **Environment Flexibility**: Same charts, different configurations  
+✅ **Production Ready**: Security, scaling, monitoring included  
+✅ **DevOps Friendly**: Environment variable driven configuration  
 
-**Deploy with Helm:**
-```bash
-# Install/upgrade entire application
-helm upgrade --install eshop ./eshop-microservices \
-  --namespace eshop-production \
-  --create-namespace \
-  --values values.yaml
+This architecture ensures **scalable**, **maintainable**, and **production-ready** deployment of the complete eShop microservices application! 🎯
 
-# Override specific values for different environments
-helm upgrade --install eshop ./eshop-microservices \
-  --namespace eshop-staging \
-  --set global.imageTag=1.3.0-beta \
-  --set catalogApi.replicaCount=1 \
-  --set global.serviceNames.catalogApi=catalog-service-beta
-```
-
-**Update Service Names Without Code Changes:**
-```bash
-# Change service names in production
-helm upgrade eshop ./eshop-microservices \
-  --set global.serviceNames.catalogApi=catalog-service-v2 \
-  --set global.serviceNames.basketApi=basket-service-new
-```
-
-## Pure .NET Deployment Comparison
-
-### Traditional Deployment Challenges
-
-**Manual Configuration Management:**
-```json
-// On each server, manually configure appsettings.Production.json
-{
-  "ServiceEndpoints": {
-    "CatalogApi": "http://server3.company.com:8080",
-    "BasketApi": "http://server4.company.com:8080", 
-    "OrderingApi": "http://server5.company.com:8080"
-  }
-}
-```
-
-**Problems:**
-- Each server needs individual configuration
-- No centralized configuration management
-- Service discovery requires manual IP/hostname management
-- Load balancing requires external tools
-- Scaling requires manual server provisioning
-
-## What Kubernetes Adds: The Value Proposition
-
-### Configuration Management Comparison
-
-| Aspect | Pure .NET | Kubernetes + Helm |
-|--------|-----------|-------------------|
-| **Service Names** | Hardcoded in each service config | Centralized in Helm values |
-| **Configuration Updates** | Restart all services manually | Rolling updates automatically |
-| **Environment Consistency** | Manual synchronization | Declarative templates |
-| **Service Discovery** | Static IP configuration | Dynamic DNS resolution |
-| **Scaling** | Manual server provisioning | Horizontal pod autoscaling |
-| **Version Management** | Individual deployment tracking | Helm release management |
-
-### DevOps Benefits Summary
-
-**Single Source of Truth:**
-```yaml
-# Change service name once, affects all dependencies
-global:
-  serviceNames:
-    catalogApi: "catalog-service-v2"  # Updates everywhere automatically
-```
-
-**Environment Promotion:**
-```bash
-# Same chart, different values per environment
-helm install eshop-dev ./eshop --values values-dev.yaml
-helm install eshop-staging ./eshop --values values-staging.yaml  
-helm install eshop-prod ./eshop --values values-prod.yaml
-```
-
-**Blue-Green Deployments:**
-```yaml
-# Switch traffic between versions
-global:
-  serviceNames:
-    catalogApi: "catalog-service-blue"  # or "catalog-service-green"
-```
-
-This approach gives you complete DevOps control over service naming and configuration without requiring application code changes - exactly what you need for professional microservices management! 
+ 
