@@ -1,0 +1,122 @@
+{{- if .Values.postgresql.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.postgresql.serviceName | default (printf "%s-postgresql" .Release.Name) }}
+  labels:
+    {{- include "application.databaseLabels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Values.postgresql.serviceName | default (printf "%s-postgresql" .Release.Name) }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "application.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        {{- include "application.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+      - name: postgresql
+        image: {{ .Values.postgresql.image | default "postgres:17-bookworm" }}
+        ports:
+        - containerPort: {{ .Values.postgresql.port | default 5432 }}
+          name: postgresql
+        env:
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresql.auth.database }}
+        - name: POSTGRES_USER
+          value: {{ .Values.postgresql.auth.username }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.postgresql.auth.password }}
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        {{- if .Values.postgresql.initScripts }}
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+        {{- end }}
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "192Mi"
+            cpu: "150m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.postgresql.auth.username }}
+            - -d
+            - {{ .Values.postgresql.auth.database }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.postgresql.auth.username }}
+            - -d
+            - {{ .Values.postgresql.auth.database }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+      volumes:
+      {{- if .Values.postgresql.initScripts }}
+      - name: init-scripts
+        configMap:
+          name: {{ .Values.postgresql.serviceName | default (printf "%s-postgresql" .Release.Name) }}-init
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: postgresql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.postgresql.storage | default "1Gi" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgresql.serviceName | default (printf "%s-postgresql" .Release.Name) }}
+  labels:
+    {{- include "application.databaseLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.postgresql.port | default 5432 }}
+    targetPort: postgresql
+    protocol: TCP
+    name: postgresql
+  selector:
+    {{- include "application.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+{{- if .Values.postgresql.initScripts }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.postgresql.serviceName | default (printf "%s-postgresql" .Release.Name) }}-init
+  labels:
+    {{- include "application.labels" . | nindent 4 }}
+data:
+  {{- range $filename, $content := .Values.postgresql.initScripts }}
+  {{ $filename }}: |
+{{ $content | indent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

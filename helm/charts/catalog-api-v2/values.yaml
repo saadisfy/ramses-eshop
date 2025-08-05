@@ -1,0 +1,124 @@
+# Catalog API v2 - Using baseChart dependency
+# This chart configures the baseChart for the Catalog API microservice
+
+# Configure the baseChart (aliased as 'app' in Chart.yaml)
+base:
+  # Certificate issuer configuration
+  certIssuerName: &certIssuerName "letsencrypt-prod"
+  certIssuerKind: &certIssuerKind "ClusterIssuer"
+  
+  # Application-specific anchors
+  appHost: &appHost "catalog-api.saadisfy.me"
+  appTlsSecret: &appTlsSecret "catalog-api-tls"
+
+  # Application configuration
+  application:
+    name: "catalog-api"
+    environment: "Development" # alternatively: "Production"
+    port: 8080
+    healthPath: "/health"
+
+  # Container image
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "catalog-api"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: *certIssuerName
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: *appHost
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - hosts:
+          - *appHost
+        secretName: *appTlsSecret
+
+  # PostgreSQL configuration (enabled for catalog-api)
+  postgresql:
+    enabled: true
+    image: "pgvector/pgvector:0.8.0-pg17-bookworm"  # Using pgvector for catalog features
+    storage: "1Gi"
+    # Service configuration
+    serviceName: ""  # If empty, defaults to: {{ .Release.Name }}-postgresql
+    port: 5432
+    # Connection string override (if you need custom format)
+    connectionString: ""  # If empty, auto-generated from auth settings
+    auth:
+      username: "postgres"
+      password: "CHANGEME"
+      database: "catalogdb"
+    # Initialize with vector extension
+    initScripts:
+      init.sql: |
+        CREATE EXTENSION IF NOT EXISTS vector;
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: false  # Redis not needed for catalog-api
+      serviceName: "redis-service"
+      port: 6379
+    rabbitmq:
+      enabled: true
+      serviceName: ""  # If empty, defaults to: {{ .Release.Name }}-rabbitmq (Bitnami chart default)
+      port: &rabbitmqPort 5672
+      username: "user"
+      password: "CHANGEME"
+      subscriptionClientName: "Catalog"
+
+  # RabbitMQ configuration (Bitnami chart)
+  rabbitmq:
+    enabled: true
+    auth:
+      username: "user"
+      password: "CHANGEME"
+      erlangCookie: "CHANGEME"
+    service:
+      ports:
+        amqp: *rabbitmqPort # AMQP (Advanced Message Queuing Protocol) for message-oriented middleware
+
+  # Application-specific configuration
+  config:
+    appSettings:
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+      CatalogOptions__UseCustomizationData: "false"
+      # Note: EventBus settings are handled separately in the EventBus configuration section
+
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  # Autoscaling
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+
+  # Service Account
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+

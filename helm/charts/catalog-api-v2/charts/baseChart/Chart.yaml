@@ -1,0 +1,11 @@
+apiVersion: v2
+name: baseChart
+version: 0.1.0
+description: Base Chart for application deployment with optional PostgreSQL and RabbitMQ
+type: application
+appVersion: "1.0.0"
+dependencies:
+  - name: rabbitmq
+    version: "14.6.6"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: rabbitmq.enabled

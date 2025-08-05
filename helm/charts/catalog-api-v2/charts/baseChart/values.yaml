@@ -1,0 +1,121 @@
+# Base Chart for Applications with optional dependencies
+
+# Certificate issuer configuration (YAML anchor for reuse) prod or staging 
+certIssuerName: &certIssuerName "letsencrypt-prod"
+certIssuerKind: &certIssuerKind "ClusterIssuer"
+
+# Application-specific anchors
+appHost: &appHost "my-application.saadisfy.me" #todo: change to the actual hostname
+appTlsSecret: &appTlsSecret "my-application-tls" #todo: change to match your application name
+
+# Application configuration
+application:
+  name: "my-application" #TODO: change to the actual application name 
+  environment: "Development" # alternatively: "Production"
+  port: 8080
+  healthPath: "/health"  # only available in .application.environment == "Development"
+  # readyPath: "/health"
+
+# Container image
+image:
+  registry: "ghcr.io/saadisfy/eshop"
+  repository: "my-application" #todo: change to the actual repository
+  tag: "1.0.0" #todo: change to the actual tag
+  pullPolicy: IfNotPresent
+  pullSecret: "ghcr-secret"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: *certIssuerName
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: *appHost
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - *appHost
+      secretName: *appTlsSecret
+
+# PostgreSQL configuration (custom deployment)
+postgresql:
+  enabled: false
+  image: "postgres:17-bookworm"  # or "pgvector/pgvector:0.8.0-pg17-bookworm" for vector support
+  storage: "1Gi"
+  auth:
+    username: "postgres"
+    password: "CHANGEME"
+    database: "appdb"
+  # Optional initialization scripts
+  # initScripts:
+  #   init.sql: |
+  #     CREATE EXTENSION IF NOT EXISTS vector;
+
+# Shared services (Redis, RabbitMQ) - can deploy locally or reference external services
+# TODO: Create separate shared infrastructure chart for RabbitMQ and Redis
+#       instead of deploying with each application. Move these to helm/shared-services/
+sharedServices:
+  redis:
+    enabled: false
+    serviceName: "redis-service"
+    port: 6379
+  rabbitmq:
+    enabled: false
+    serviceName: "my-application-rabbitmq"  # Bitnami chart service name
+    port: 5672
+    username: "user"
+    password: "CHANGEME"
+
+# RabbitMQ configuration (Bitnami chart)
+rabbitmq:
+  enabled: false
+  auth:
+    username: "user"
+    password: "CHANGEME"
+    erlangCookie: "CHANGEME"
+  service:
+    ports:
+      amqp: 5672
+
+# Application configuration
+config:
+  appSettings:
+    Logging__LogLevel__Default: "Information"
+    Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+    # Add your application-specific settings here
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+
+# Service Account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
