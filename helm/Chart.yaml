@@ -5,15 +5,57 @@ description: eShop microservices umbrella chart
 type: application
 appVersion: "1.0.0"
 dependencies:
-  - name: catalog.api
+  # Shared infrastructure (deploy first)
+  - name: rabbitmq
+    version: "1.0.0"
+    repository: "file://charts/rabbitmq"
+    condition: rabbitmq.enabled
+    
+  # Core microservices
+  - name: identity-api
     version: "0.1.0"
-    condition: catalog.api.enabled
-  - name: basket.api  
+    repository: "file://charts/identity-api"
+    condition: identity-api.enabled
+    
+  - name: catalog-api-v2
     version: "0.1.0"
-    condition: basket.api.enabled
-  - name: ordering.api
-    version: "0.1.0" 
-    condition: ordering.api.enabled
-  - name: identity.api
+    repository: "file://charts/catalog-api-v2"
+    condition: catalog-api-v2.enabled
+    
+  - name: ordering-api
     version: "0.1.0"
-    condition: identity.api.enabled
+    repository: "file://charts/ordering-api"
+    condition: ordering-api.enabled
+    
+  - name: basket-api
+    version: "0.1.0"
+    repository: "file://charts/basket-api"
+    condition: basket-api.enabled
+    
+  # Background processors
+  - name: order-processor
+    version: "0.1.0"
+    repository: "file://charts/order-processor"
+    condition: order-processor.enabled
+    
+  - name: payment-processor
+    version: "0.1.0"
+    repository: "file://charts/payment-processor"
+    condition: payment-processor.enabled
+    
+  # Webhook services
+  - name: webhooks-api
+    version: "0.1.0"
+    repository: "file://charts/webhooks-api"
+    condition: webhooks-api.enabled
+    
+  - name: webhook-client
+    version: "0.1.0"
+    repository: "file://charts/webhook-client"
+    condition: webhook-client.enabled
+    
+  # Frontend
+  - name: webapp
+    version: "0.1.0"
+    repository: "file://charts/webapp"
+    condition: webapp.enabled

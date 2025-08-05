@@ -1,0 +1,33 @@
+dependencies:
+- name: rabbitmq
+  repository: file://charts/rabbitmq
+  version: 1.0.0
+- name: identity-api
+  repository: file://charts/identity-api
+  version: 0.1.0
+- name: catalog-api-v2
+  repository: file://charts/catalog-api-v2
+  version: 0.1.0
+- name: ordering-api
+  repository: file://charts/ordering-api
+  version: 0.1.0
+- name: basket-api
+  repository: file://charts/basket-api
+  version: 0.1.0
+- name: order-processor
+  repository: file://charts/order-processor
+  version: 0.1.0
+- name: payment-processor
+  repository: file://charts/payment-processor
+  version: 0.1.0
+- name: webhooks-api
+  repository: file://charts/webhooks-api
+  version: 0.1.0
+- name: webhook-client
+  repository: file://charts/webhook-client
+  version: 0.1.0
+- name: webapp
+  repository: file://charts/webapp
+  version: 0.1.0
+digest: sha256:947ede064b497f26ed0ffbae86f1a4ac26cf2a86701fa4d27667ec35c491dcef
+generated: "2025-08-05T16:35:26.541624466+02:00"

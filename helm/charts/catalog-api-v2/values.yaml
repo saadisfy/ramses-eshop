@@ -68,7 +68,7 @@ base:
       init.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
 
-  # Shared services configuration
+  # Shared services configuration (external services)
   sharedServices:
     redis:
       enabled: false  # Redis not needed for catalog-api
@@ -76,22 +76,15 @@ base:
       port: 6379
     rabbitmq:
       enabled: true
-      serviceName: ""  # If empty, defaults to: {{ .Release.Name }}-rabbitmq (Bitnami chart default)
-      port: &rabbitmqPort 5672
+      serviceName: ""  # If empty, defaults to external rabbitmq service
+      port: 5672
       username: "user"
       password: "CHANGEME"
       subscriptionClientName: "Catalog"
 
-  # RabbitMQ configuration (Bitnami chart)
+  # RabbitMQ configuration (disabled - using external rabbitmq chart)
   rabbitmq:
-    enabled: true
-    auth:
-      username: "user"
-      password: "CHANGEME"
-      erlangCookie: "CHANGEME"
-    service:
-      ports:
-        amqp: *rabbitmqPort # AMQP (Advanced Message Queuing Protocol) for message-oriented middleware
+    enabled: false
 
   # Application-specific configuration
   config:

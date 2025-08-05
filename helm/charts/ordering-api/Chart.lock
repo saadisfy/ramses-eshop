@@ -3,4 +3,4 @@ dependencies:
   repository: oci://ghcr.io/saadisfy
   version: 1.0.1
 digest: sha256:64104aac22a280c917fa4337124ed805972ba67ef84a22967b44ef14791a33e4
-generated: "2025-08-05T16:29:49.177905759+02:00"
+generated: "2025-08-05T16:48:40.70760891+02:00"

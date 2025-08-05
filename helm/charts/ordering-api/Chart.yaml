@@ -1,7 +1,7 @@
 apiVersion: v2
-name: catalog-api-v2
+name: ordering-api
 version: 0.1.0
-description: eShop Catalog API microservice using baseChart dependency
+description: eShop Ordering API microservice using basechart dependency
 type: application
 appVersion: "1.0.0"
 dependencies:

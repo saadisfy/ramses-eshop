@@ -1,7 +1,7 @@
 apiVersion: v2
-name: catalog-api-v2
+name: identity-api
 version: 0.1.0
-description: eShop Catalog API microservice using baseChart dependency
+description: eShop Identity API microservice using basechart dependency
 type: application
 appVersion: "1.0.0"
 dependencies:
@@ -9,3 +9,4 @@ dependencies:
     version: "1.0.1"
     repository: "oci://ghcr.io/saadisfy"
     alias: base
+#@cursor: add conditional redis dependency

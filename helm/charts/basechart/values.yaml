@@ -60,9 +60,9 @@ postgresql:
   #   init.sql: |
   #     CREATE EXTENSION IF NOT EXISTS vector;
 
-# Shared services (Redis, RabbitMQ) - can deploy locally or reference external services
-# TODO: Create separate shared infrastructure chart for RabbitMQ and Redis
-#       instead of deploying with each application. Move these to helm/shared-services/
+# Shared services (Redis, RabbitMQ) - reference external services
+# Note: RabbitMQ and Redis are deployed separately using dedicated charts
+#       Use helm/charts/rabbitmq for shared EventBus deployment
 sharedServices:
   redis:
     enabled: false
@@ -70,21 +70,14 @@ sharedServices:
     port: 6379
   rabbitmq:
     enabled: false
-    serviceName: "my-application-rabbitmq"  # Bitnami chart service name
+    serviceName: ""  # If empty, defaults to external rabbitmq service
     port: 5672
     username: "user"
     password: "CHANGEME"
+    subscriptionClientName: "DefaultClient" #todo might need to adjust this
 
-# RabbitMQ configuration (Bitnami chart)
-rabbitmq:
-  enabled: false
-  auth:
-    username: "user"
-    password: "CHANGEME"
-    erlangCookie: "CHANGEME"
-  service:
-    ports:
-      amqp: 5672
+# RabbitMQ configuration (Bitnami chart) - REMOVED
+# Services now connect to external shared RabbitMQ via sharedServices.rabbitmq configuration
 
 # Application configuration
 config:
