@@ -1,6 +1,6 @@
 apiVersion: v2
-name: baseChart
-version: 0.1.0
+name: basechart
+version: 1.0.0
 description: Base Chart for application deployment with optional PostgreSQL and RabbitMQ
 type: application
 appVersion: "1.0.0"

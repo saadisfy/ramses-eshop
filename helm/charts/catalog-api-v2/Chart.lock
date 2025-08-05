@@ -1,0 +1,6 @@
+dependencies:
+- name: basechart
+  repository: oci://ghcr.io/saadisfy
+  version: 1.0.0
+digest: sha256:52b723618847f97a4727d2d9aa8effb0ff3101e1ae34eb9a52727c5b89824899
+generated: "2025-08-05T14:40:22.898147216+02:00"
