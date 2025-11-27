@@ -1,0 +1,11 @@
+apiVersion: v2
+name: order-processor
+version: 0.1.0
+description: eShop Order Processor microservice using basechart dependency
+type: application
+appVersion: "1.0.0"
+dependencies:
+  - name: basechart
+    version: "1.0.5"
+    repository: "file://../basechart" #"oci://ghcr.io/saadisfy"
+    alias: base

@@ -1,0 +1,13 @@
+{
+  "TemplatePath": "/mnt/c/Git/eShop/src/eShop.AppHost/aspir8edKustomize",
+  "ContainerSettings": {
+    "Registry": "ghcr.io",
+    "RepositoryPrefix": "saadisfy/eshop",
+    "Tags": [
+      "1.0.0"
+    ],
+    "Builder": "docker",
+    "BuildArgs": null,
+    "Context": null
+  }
+}

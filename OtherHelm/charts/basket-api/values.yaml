@@ -1,0 +1,55 @@
+# Basket API Configuration
+# This chart deploys the eShop Basket API microservice using the basechart
+
+base:
+  # Application configuration
+  application:
+    name: &appName "basket-api"
+    environment: "Development"
+    minReadySeconds: 60
+    ports:
+      httpContainerPort: 8080
+      httpsContainerPort: 8443
+    terminationGracePeriodSeconds: 180
+
+  # Environment variable overrides for this specific service
+  envOverrides:
+    - name: Identity__Audience
+      value: "basket"
+    - name: OTEL_SERVICE_NAME
+      value: *appName
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "basket-api"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: &appHost "basket-api.saadisfy.me"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: &appTlsSecret "basket-api-tls"
+        hosts:
+          - *appHost
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: true  # Basket API uses Redis for shopping cart
+    rabbitmq:
+      enabled: true  # Basket API uses RabbitMQ for events
+      subscriptionClientName: "Basket"  # Override subscription client name
+    postgresql:
+      enabled: false  # Basket API doesn't need PostgreSQL (uses Redis instead)

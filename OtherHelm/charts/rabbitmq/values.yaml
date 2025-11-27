@@ -1,0 +1,49 @@
+# RabbitMQ Configuration
+# This chart provides a shared EventBus (RabbitMQ) for all eShop microservices
+
+rabbitmq:
+  # Authentication settings
+  auth:
+    username: "guest"
+    password: "CHANGEME"
+    erlangCookie: "CHANGEME"
+  
+  # Service configuration
+  service:
+    ports:
+      amqp: 3679  # AMQP (Advanced Message Queuing Protocol) for message-oriented middleware
+  
+  # Persistence - enable for production
+  persistence:
+    enabled: true
+    size: 8Gi
+  
+  # Resources
+  resources:
+    limits:
+      cpu: 375m
+      ephemeral-storage: 2Gi
+      memory: 384Mi
+    requests:
+      cpu: 250m
+      ephemeral-storage: 50Mi
+      memory: 256Mi
+  
+  # Metrics
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+    prometheusRule:
+      enabled: false
+  
+  # High availability (for production)
+  replicaCount: 1
+  clustering:
+    enabled: false
+  
+  # Memory and disk limits
+  memoryHighWatermark:
+    enabled: false
+    type: "relative"
+    value: 0.4

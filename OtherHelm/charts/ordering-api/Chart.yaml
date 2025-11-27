@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ordering-api
+version: 0.1.0
+description: eShop Ordering API microservice using basechart dependency
+type: application
+appVersion: "1.0.0"
+dependencies:
+  - name: basechart
+    version: "1.0.5"
+    repository: "file://../basechart" #"oci://ghcr.io/saadisfy"
+    alias: base

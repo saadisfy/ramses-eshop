@@ -1,0 +1,42 @@
+# Redis Configuration
+# This chart provides a shared Redis cache for all eShop microservices
+
+redis:
+  # Image configuration  
+  image:
+    repository: redis
+    tag: "7.4"
+    pullPolicy: IfNotPresent
+  
+  # Authentication
+  auth:
+    password: "CHANGEME"
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 6379
+  
+  # Resources
+  resources:
+    limits:
+      cpu: 250m
+      ephemeral-storage: 1Gi
+      memory: 256Mi
+    requests:
+      cpu: 125m
+      ephemeral-storage: 50Mi
+      memory: 128Mi
+  
+  # Deployment configuration
+  replicaCount: 1
+  
+  # Persistence (for production, consider enabling)
+  persistence:
+    enabled: false
+    size: 8Gi
+  
+  # Observability
+  monitoring:
+    enabled: true
+    otelEndpoint: "http://aspire-dashboard:18889"

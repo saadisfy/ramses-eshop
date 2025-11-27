@@ -1,0 +1,58 @@
+# PostgreSQL Configuration
+# This chart provides a PostgreSQL database for eShop microservices
+
+postgresql:
+  # Image configuration 
+  image:
+    repository: "ankane/pgvector"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 5432
+  
+  # Authentication
+  auth:
+    username: "postgres"
+    password: "CHANGEME" 
+    hostAuthMethod: "scram-sha-256"
+    initdbArgs: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+  
+  # Storage configuration
+  persistence:
+    enabled: true
+    size: "1Gi"
+    storageClass: ""
+  
+  # Resources (keeping StatefulSet optimized settings)
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "192Mi"
+      cpu: "150m"
+  
+  # Security context
+  securityContext:
+    runAsUser: 999
+    fsGroup: 999
+  
+  # Health checks
+  healthChecks:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  
+  # Observability (from configmap)
+  monitoring:
+    enabled: true
+    otelEndpoint: "http://aspire-dashboard:18889"
+  
+  # Deployment configuration
+  replicaCount: 1
+  terminationGracePeriodSeconds: 180
+  minReadySeconds: 60

@@ -1,529 +1,143 @@
 # eShop Umbrella Chart Values
 # This file configures all eShop microservices for deployment
-
-# Global configuration
 global:
-  imageRegistry: "ghcr.io/saadisfy/eshop"
-  imageTag: "1.0.0"
-  namespace: "eshop"
-  
-  # Common settings for all services
-  common:
-    pullSecret: "ghcr-secret"
-    environment: "Development"  # or "Development"
-    ingressClassName: "nginx"
-    certIssuer: "letsencrypt-prod"
-    domain: "saadisfy.me"
+  eshop:
+    sharedServices:
+      postgresql: #SecretRefName is set in the child chart locally
+        serviceName: "postgresql"  # Will become {release-name}-postgresql
+        port: &postgres_port "5432"
+        auth:
+          username: &postgres_username "postgres"
+          password: "CHANGEME" "yIoOi6U5qVkau2yZo1dFts"
+      
+      rabbitmq:
+        secretRefName: "connectionstringeventbus"
+        serviceName: "rabbitmq"  # Will become {release-name}-rabbitmq
+        port: &rabbitmq_port "5672"  
+        auth:
+          username: &rabbitmq_username "guest"
+          password: "CHANGEME" "6182sR0IUiNVZHU07E48Wu"
+          erlangCookie: &rabbitmq_cookie "secretcookie"
+      
+      redis:
+        secretRefName: "connectionstringredis"
+        serviceName: "redis"  # Will become {release-name}-redis
+        port: &redis_port "6379"  
+        auth:
+          password: "CHANGEME" "SFEGhcBmCUdaAbxEaouYdy"
+    
+
+
+
+
+
+
+
+
+# Core environment variables shared by all services
+envDefaults: &commonEnvDefaults
+  - name: ASPNETCORE_ENVIRONMENT
+    value: "Development"
+  - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+    value: "true"
+  - name: IdentityUrl
+    value: "https://identity-api.saadisfy.me"
+  - name: Logging__LogLevel__Default
+    value: "Information"
+  - name: Logging__LogLevel__Microsoft.AspNetCore
+    value: "Warning"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES
+    value: "true"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES
+    value: "true"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY
+    value: "in_memory"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://aspire-dashboard:18889"
+
 
 # ================================
 # SHARED INFRASTRUCTURE
 # ================================
 
 # RabbitMQ EventBus (deploy first)
+postgresql:
+  enabled: true
+  postgresql:
+    service:
+      port: *postgres_port
+    auth:
+      username: *postgres_username
+      password: "CHANGEME"
+
 rabbitmq:
   enabled: true
   rabbitmq:
-    auth:
-      username: "user"
-      password: "CHANGEME"
-      erlangCookie: "CHANGEME"
     service:
       ports:
-        amqp: 5672
-    persistence:
-      enabled: true
-      size: 8Gi
-    resources:
-      limits:
-        cpu: 375m
-        memory: 384Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
+        amqp: *rabbitmq_port
+    auth:
+      username: *rabbitmq_username
+      password: "CHANGEME"
+      erlangCookie: *rabbitmq_cookie
+
+redis:
+  enabled: true
+  redis:
+    service:
+      port: *redis_port
+    auth:
+      password: "CHANGEME"
 
 # ================================
-# CORE MICROSERVICES
+# MICROSERVICES
 # ================================
 
-# Identity API - Authentication & Authorization
+# Core microservices
 identity-api:
   enabled: true
   base:
-    application:
-      name: "identity-api"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "identity-api"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "identity-api.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "identity-api-tls"
-          hosts:
-            - "identity-api.saadisfy.me"
-    postgresql:
-      enabled: true
-      auth:
-        database: "identitydb"
-        username: "postgres"
-        password: "CHANGEME"
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"  # Points to umbrella RabbitMQ
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "Identity"
-    config:
-      appSettings:
-        Identity__Issuer: "https://identity-api.saadisfy.me"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
+    envDefaults: *commonEnvDefaults
 
-# Catalog API v2 - Product Catalog with AI Features
-catalog-api-v2:
-  enabled: true
-  base:
-    application:
-      name: "catalog-api"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "catalog-api"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "catalog-api.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "catalog-api-tls"
-          hosts:
-            - "catalog-api.saadisfy.me"
-    postgresql:
-      enabled: true
-      image: "pgvector/pgvector:0.8.0-pg17-bookworm"  # AI/Vector support
-      auth:
-        database: "catalogdb"
-        username: "postgres"
-        password: "CHANGEME"
-      initScripts:
-        init.sql: |
-          CREATE EXTENSION IF NOT EXISTS vector;
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "Catalog"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
-
-# Ordering API - Order Management
-ordering-api:
-  enabled: true
-  base:
-    application:
-      name: "ordering-api"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "ordering-api"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "ordering-api.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "ordering-api-tls"
-          hosts:
-            - "ordering-api.saadisfy.me"
-    postgresql:
-      enabled: true
-      auth:
-        database: "orderservicedb"  # Shared database for ordering services
-        username: "postgres"
-        password: "CHANGEME"
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "Ordering"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
-
-# Basket API - Shopping Cart with Redis
 basket-api:
   enabled: true
   base:
-    application:
-      name: "basket-api"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "basket-api"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "basket-api.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "basket-api-tls"
-          hosts:
-            - "basket-api.saadisfy.me"
-    postgresql:
-      enabled: false  # Uses Redis instead
-    redis:
-      enabled: true
-      port: 6379
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "Basket"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
+    envDefaults: *commonEnvDefaults
 
-# ================================
-# BACKGROUND PROCESSORS
-# ================================
+catalog-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
 
-# Order Processor - Background Order Processing
+ordering-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+# Background processors
 order-processor:
   enabled: true
   base:
-    application:
-      name: "order-processor"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "order-processor"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: false  # Background service
-    postgresql:
-      enabled: false  # Uses ordering-api's shared PostgreSQL
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "OrderProcessor"
-    livenessProbe:
-      enabled: false  # No HTTP endpoints
-    readinessProbe:
-      enabled: false
-    config:
-      appSettings:
-        Logging__LogLevel__Default: "Information"
-        Logging__LogLevel__Microsoft.AspNetCore: "Warning"
-        # Database connection to shared ordering-api PostgreSQL
-        ConnectionStrings__orderservicedb: "Host=ordering-api-postgresql;Port=5432;Database=orderservicedb;Username=postgres;Password=orderingpassword123"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
+    envDefaults: *commonEnvDefaults
 
-# Payment Processor - Background Payment Processing
 payment-processor:
   enabled: true
   base:
-    application:
-      name: "payment-processor"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "payment-processor"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: false  # Background service
-    postgresql:
-      enabled: false  # No database needed
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "Payment"
-    livenessProbe:
-      enabled: false
-    readinessProbe:
-      enabled: false
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 125m
-        memory: 128Mi
+    envDefaults: *commonEnvDefaults
 
-# ================================
-# WEBHOOK SERVICES
-# ================================
-
-# Webhooks API - Webhook Management
+# Webhook services
 webhooks-api:
   enabled: true
   base:
-    application:
-      name: "webhooks-api"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "webhooks-api"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "webhooks-api.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "webhooks-api-tls"
-          hosts:
-            - "webhooks-api.saadisfy.me"
-    postgresql:
-      enabled: true
-      auth:
-        database: "webhooksdb"
-        username: "postgres"
-        password: "CHANGEME"
-    sharedServices:
-      rabbitmq:
-        enabled: false  # No EventBus for webhooks
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 125m
-        memory: 128Mi
+    envDefaults: *commonEnvDefaults
 
-# Webhook Client - Webhook Testing
 webhook-client:
   enabled: true
   base:
-    application:
-      name: "webhook-client"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "webhook-client"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "webhook-client.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "webhook-client-tls"
-          hosts:
-            - "webhook-client.saadisfy.me"
-    postgresql:
-      enabled: false  # No database needed
-    sharedServices:
-      rabbitmq:
-        enabled: false  # No EventBus needed
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 125m
-        memory: 128Mi
+    envDefaults: *commonEnvDefaults
 
-# ================================
-# FRONTEND
-# ================================
-
-# WebApp - Frontend Application
+# Frontend
 webapp:
   enabled: true
   base:
-    application:
-      name: "webapp"
-      environment: "Development"
-      port: 8080
-    image:
-      registry: "ghcr.io/saadisfy/eshop"
-      repository: "webapp"
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-      pullSecret: "ghcr-secret"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-    ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      hosts:
-        - host: "webapp.saadisfy.me"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: "webapp-tls"
-          hosts:
-            - "webapp.saadisfy.me"
-    postgresql:
-      enabled: false  # Frontend doesn't need database
-    sharedServices:
-      rabbitmq:
-        enabled: true
-        serviceName: "rabbitmq-rabbitmq"
-        port: 5672
-        username: "user"
-        password: "CHANGEME"
-        subscriptionClientName: "WebApp"
-    config:
-      appSettings:
-        # Service endpoints for frontend
-        ServiceEndpoints__IdentityApi: "https://identity-api.saadisfy.me"
-        ServiceEndpoints__CatalogApi: "https://catalog-api.saadisfy.me"
-        ServiceEndpoints__OrderingApi: "https://ordering-api.saadisfy.me"
-        ServiceEndpoints__BasketApi: "https://basket-api.saadisfy.me"
-        ServiceEndpoints__WebhooksApi: "https://webhooks-api.saadisfy.me"
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
+    envDefaults: *commonEnvDefaults

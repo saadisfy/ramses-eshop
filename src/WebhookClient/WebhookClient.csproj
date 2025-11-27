@@ -5,8 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>eShop.WebhookClient</RootNamespace>
-     <!-- Semantic Versioning -->
+     <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  -->
     <Version>1.0.0</Version>
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/webhook-client</ContainerRepository>
+    <ContainerImageTag>1.0.0</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>

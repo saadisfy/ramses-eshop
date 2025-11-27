@@ -1,0 +1,111 @@
+# Base Chart for Applications with optional dependencies
+
+# Certificate issuer configuration (YAML anchor for reuse) prod or staging 
+certIssuerName: &certIssuerName "letsencrypt-prod"
+certIssuerKind: &certIssuerKind "ClusterIssuer"
+
+# Application-specific anchors
+appHost: &appHost "my-application.saadisfy.me" #todo: change to the actual hostname
+appTlsSecret: &appTlsSecret "my-application-tls" #todo: change to match your application name
+
+# Application configuration
+application:
+  name: "basechart"  # Default name, will be overridden by microservices
+  environment: "Development"
+  ports:
+      httpContainerPort: &httpContainerPort 8080
+      httpsContainerPort: 8443
+
+# Container image
+image:
+  registry: "ghcr.io/saadisfy/eshop"
+  repository: "my-application" #todo: change to the actual repository
+  tag: "1.0.0" #todo: change to the actual tag
+  pullPolicy: IfNotPresent
+  pullSecret: "ghcr-secret" #manually set in Kubernetes
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    httpPort: 8080
+    httpsPort: 8443
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: *certIssuerName
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: *appHost
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - *appHost
+      secretName: *appTlsSecret
+
+
+
+# Default environment variables that can be extended by parent charts
+envDefaults: []
+
+# Environment variable overrides from parent charts
+envOverrides: []
+
+# Shared services configuration (external services)
+# Note: These are disabled by default and must be explicitly enabled by microservices
+sharedServices:
+  redis:
+    enabled: false  # only set true by parent chart
+  rabbitmq:
+    enabled: false  # only set true by parent chart
+    subscriptionClientName: "DefaultName"  # only set true by parent chart
+  postgresql:
+    enabled: false  # only set true by parent chart
+    createSecret: true  # Whether this service should create the PostgreSQL secret (default: true)
+    secretRefName: "connectionstringpostgresql-default"  # only set true by parent chart
+    auth:
+      database: "defaultdb"  # Override database name for this microservice
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+
+# Service Account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Health checks
+livenessProbe:
+  enabled: false
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  enabled: false
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 5

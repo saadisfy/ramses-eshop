@@ -1,6 +1,0 @@
-apiVersion: v2
-name: basechart
-version: 1.0.1
-description: Base Chart for application deployment with optional PostgreSQL
-type: application
-appVersion: "1.0.0"

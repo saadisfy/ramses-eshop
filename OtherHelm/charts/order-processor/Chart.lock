@@ -1,0 +1,6 @@
+dependencies:
+- name: basechart
+  repository: file://../basechart
+  version: 1.0.5
+digest: sha256:2d0dfd1332b2942bc14812ac594284f28f760fdf292a51aa0a6e92ef15daa138
+generated: "2025-08-26T15:28:43.245724168+02:00"

@@ -4,8 +4,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>eShop.IntegrationEventLogEF</RootNamespace>
     <IsPublishable>false</IsPublishable>
-     <!-- Semantic Versioning -->
+     <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  -->
     <Version>1.0.0</Version>
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/integration-event-log-ef</ContainerRepository>
+    <ContainerImageTag>1.0.0</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>
