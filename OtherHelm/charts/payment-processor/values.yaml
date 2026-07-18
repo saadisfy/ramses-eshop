@@ -1,0 +1,64 @@
+# Payment Processor Configuration
+# This chart deploys the eShop Payment Processor microservice using the basechart
+
+base:
+  # Application configuration
+  application:
+    name: &appName "payment-processor"
+    environment: "Development"
+    healthPath: "/health"
+    minReadySeconds: 60
+    ports:
+      httpContainerPort: 8080
+      httpsContainerPort: 8443
+    terminationGracePeriodSeconds: 180
+
+  # Environment variable overrides for this specific service
+  envOverrides:
+    - name: OTEL_SERVICE_NAME
+      value: *appName
+  
+  # Image configuration  
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "payment-processor"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  # Ingress configuration (disabled for background processor)
+  ingress:
+    enabled: false #@cursor: add ingress, even if background processor 
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: false  # Payment Processor doesn't need Redis
+    rabbitmq:
+      enabled: true  # Payment Processor uses RabbitMQ for events
+      subscriptionClientName: "Payment"  # Override subscription client name
+    postgresql:
+      enabled: false  # Payment Processor doesn't need PostgreSQL
+
+
+  # Resources
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 125m
+      memory: 128Mi
+
+  # Health checks (disabled for background processor)
+  livenessProbe:
+    enabled: false #@cursor: add liveness probe
+
+  readinessProbe:
+    enabled: false #@cursor: add readiness probe

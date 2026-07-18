@@ -29,7 +29,14 @@
     <ApplicationId>com.companyname.eshop</ApplicationId>
     <ApplicationId Condition="$(TargetFramework.Contains('-windows'))">9a85b8a9-4da5-4a12-8e7f-43c05ab266d6</ApplicationId>
 
-    <!-- Versions -->
+    <!--                  Versions                -->
+     <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  --> 
+    <Version>1.0.0</Version>
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/client-app</ContainerRepository>
+    <ContainerImageTag>1.0.0</ContainerImageTag>
+
+
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>

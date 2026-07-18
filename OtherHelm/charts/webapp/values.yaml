@@ -1,0 +1,121 @@
+# WebApp Configuration
+# This chart deploys the eShop Web Application using the basechart
+
+base:
+  # Application configuration
+  application:
+    name: &appName "webapp"
+    environment: "Development"
+    healthPath: "/health"
+    minReadySeconds: 60
+    ports:
+      httpContainerPort: 8080
+      httpsContainerPort: 8443
+    terminationGracePeriodSeconds: 180
+
+  # Environment variable overrides for this specific service
+  envOverrides:
+    - name: OTEL_SERVICE_NAME
+      value: *appName
+    - name: services__basket-api__http__0
+      value: "http://basket-api:8080"
+    - name: services__basket-api__https__0
+      value: "https://basket-api.saadisfy.me"
+    - name: services__catalog-api__http__0
+      value: "http://catalog-api:8080"
+    - name: services__catalog-api__https__0
+      value: "https://catalog-api.saadisfy.me"
+    - name: services__ordering-api__http__0
+      value: "http://ordering-api:8080"
+    - name: services__ordering-api__https__0
+      value: "https://ordering-api.saadisfy.me"
+    - name: IdentityUrl
+      value: "https://identity-api.saadisfy.me"
+    - name: CallBackUrl
+      value: "/signin-oidc"
+  
+  # Image configuration  
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "webapp"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "32k" # the header size for signin-oidc callback is too big, need bigger buffer size for ingress
+      nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+      nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "32k"
+      nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    hosts:
+      - host: &appHost "webapp.saadisfy.me"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: &appTlsSecret "webapp-tls"
+        hosts:
+          - *appHost
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: false  # WebApp doesn't need Redis
+    rabbitmq:
+      enabled: true   # WebApp DOES need RabbitMQ for event bus
+    postgresql:
+      enabled: false  # WebApp doesn't need PostgreSQL
+
+  # Application-specific configuration
+  config:
+    appSettings:
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+      # API endpoints
+      IdentityApiClient: "https://identity-api.saadisfy.me"
+      CatalogApiClient: "https://catalog-api.saadisfy.me"
+      OrderingApiClient: "https://ordering-api.saadisfy.me"
+      BasketApiClient: "https://basket-api.saadisfy.me"
+      # Note: EventBus settings are handled separately in the EventBus configuration section
+
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  # ServiceAccount
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+    automount: true
+
+  # Health checks
+  livenessProbe:
+    enabled: false
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    enabled: false
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 5

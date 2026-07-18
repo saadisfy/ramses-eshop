@@ -1,8 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <UserSecretsId>2964ec8e-0d48-4541-b305-94cab537f867</UserSecretsId>
     <PublishAot Condition="'$(EnableAotPublishing)' == 'true'">true</PublishAot>
+    <!-- Semantic Versioning -->
+    <Version>1.0.0</Version>
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/basket-api</ContainerRepository>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.StackExchange.Redis" />

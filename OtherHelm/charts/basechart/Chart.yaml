@@ -1,0 +1,6 @@
+apiVersion: v2
+name: basechart
+version: 1.0.5
+description: Base Chart for application deployment 
+type: application
+appVersion: "1.0.0"

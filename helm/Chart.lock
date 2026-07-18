@@ -1,0 +1,39 @@
+dependencies:
+- name: rabbitmq
+  repository: oci://ghcr.io/saadisfy/eshop
+  version: 1.0.0
+- name: redis
+  repository: oci://ghcr.io/saadisfy/eshop
+  version: 1.0.0
+- name: postgresql
+  repository: oci://ghcr.io/saadisfy/eshop
+  version: 1.0.0
+- name: identity-api
+  repository: file://../OtherHelm/charts/identity-api
+  version: 0.1.0
+- name: basket-api
+  repository: file://../OtherHelm/charts/basket-api
+  version: 0.1.0
+- name: catalog-api
+  repository: file://../OtherHelm/charts/catalog-api
+  version: 0.1.0
+- name: ordering-api
+  repository: file://../OtherHelm/charts/ordering-api
+  version: 0.1.0
+- name: order-processor
+  repository: file://../OtherHelm/charts/order-processor
+  version: 0.1.0
+- name: payment-processor
+  repository: file://../OtherHelm/charts/payment-processor
+  version: 0.1.0
+- name: webhooks-api
+  repository: file://../OtherHelm/charts/webhooks-api
+  version: 0.1.0
+- name: webhook-client
+  repository: file://../OtherHelm/charts/webhook-client
+  version: 0.1.0
+- name: webapp
+  repository: file://../OtherHelm/charts/webapp
+  version: 0.1.0
+digest: sha256:c28b00a39bad636c43507e8ba0b1e2c038b8697f1da1fb0813adaed4cbb45780
+generated: "2025-08-26T16:02:09.815666837+02:00"

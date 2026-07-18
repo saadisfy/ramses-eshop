@@ -1,0 +1,53 @@
+# Security scan stage jobs
+# This file contains security scanning jobs for Docker images
+
+security-scan:
+  stage: security-scan
+  image: aquasec/trivy:latest
+  needs:
+    # TESTING MODE: Only depends on catalog-api for step-by-step testing
+    # - docker-publish-apphost
+    # - docker-publish-basket-api
+    - docker-publish-catalog-api
+    # - docker-publish-identity-api
+    # - docker-publish-ordering-api
+    # - docker-publish-webapp
+  script:
+    - echo "Scanning Docker images for vulnerabilities..."
+    - |
+      trivy image \
+        --format json \
+        --output trivy-apphost.json \
+        $REGISTRY_IMAGE/apphost:$CI_COMMIT_SHA
+    - |
+      trivy image \
+        --format json \
+        --output trivy-basket-api.json \
+        $REGISTRY_IMAGE/basket-api:$CI_COMMIT_SHA
+    - |
+      trivy image \
+        --format json \
+        --output trivy-catalog-api.json \
+        $REGISTRY_IMAGE/catalog-api:$CI_COMMIT_SHA
+    - |
+      trivy image \
+        --format json \
+        --output trivy-identity-api.json \
+        $REGISTRY_IMAGE/identity-api:$CI_COMMIT_SHA
+    - |
+      trivy image \
+        --format json \
+        --output trivy-ordering-api.json \
+        $REGISTRY_IMAGE/ordering-api:$CI_COMMIT_SHA
+    - |
+      trivy image \
+        --format json \
+        --output trivy-webapp.json \
+        $REGISTRY_IMAGE/webapp:$CI_COMMIT_SHA
+  artifacts:
+    paths:
+      - trivy-*.json
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*$/ 

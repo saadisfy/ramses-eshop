@@ -1,0 +1,41 @@
+# Test stage jobs
+# This file contains test jobs for unit and integration tests
+
+# # Test stage - Run unit and integration tests
+# test:
+#   stage: test
+#   image: mcr.microsoft.com/dotnet/sdk:9.0
+#   services:
+#     - name: postgres:15-alpine
+#       alias: postgres
+#     - name: redis:7-alpine
+#       alias: redis
+#     - name: rabbitmq:3-management-alpine
+#       alias: rabbitmq
+#   variables:
+#     POSTGRES_DB: "testdb"
+#     POSTGRES_USER: "testuser"
+#     POSTGRES_PASSWORD: "testpass"
+#     REDIS_PASSWORD: "testpass"
+#     RABBITMQ_DEFAULT_USER: "testuser"
+#     RABBITMQ_DEFAULT_PASS: "testpass"
+#   script:
+#     - echo "Running tests..."
+#     - dotnet restore $SOLUTION_FILE
+#     - dotnet test tests/ --configuration $BUILD_CONFIGURATION --no-restore --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage-results/
+#     - dotnet tool install --global dotnet-reportgenerator-globaltool
+#     - reportgenerator -reports:"./coverage-results/**/coverage.cobertura.xml" -targetdir:"./coverage-report" -reporttypes:Html
+#   coverage: '/Total.*?(\d+\.\d+)%/'
+#   artifacts:
+#     reports:
+#       junit: coverage-results/**/TestResults.xml
+#       coverage_report:
+#         coverage_format: cobertura
+#         path: coverage-results/**/coverage.cobertura.xml
+#     paths:
+#       - coverage-report/
+#     expire_in: 1 week
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+#     - if: $CI_COMMIT_BRANCH =~ /^feature\/.*$/ 

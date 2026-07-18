@@ -29,6 +29,12 @@
         <ApplicationId>com.companyname.eshop.hybridapp</ApplicationId>
 
         <!-- Versions -->
+         <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  -->
+        <Version>1.0.0</Version>
+        <!-- Container Configuration -->
+        <ContainerRepository>saadisfy/eShop/hybrid-app</ContainerRepository>
+        <ContainerImageTag>1.0.0</ContainerImageTag>
+
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
 

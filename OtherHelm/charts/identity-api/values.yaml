@@ -1,0 +1,74 @@
+# Identity API Configuration
+# This chart configures the baseChart for the Identity API microservice
+
+# need global values from Umbrella chart for shared services
+
+base:
+  # Application configuration
+  application:
+    name: &appName "identity-api"
+    environment: "Development"
+    minReadySeconds: 60
+    ports:
+      httpContainerPort: &httpContainerPort 8080
+      httpsContainerPort: 8443
+    terminationGracePeriodSeconds: 180
+
+  # Environment variable overrides for this specific service
+  envOverrides:
+    - name: OTEL_SERVICE_NAME
+      value: *appName
+    - name: BasketApiClient
+      value: "https://basket-api.saadisfy.me"
+    - name: OrderingApiClient
+      value: "https://ordering-api.saadisfy.me"
+    - name: WebhooksApiClient
+      value: "https://webhooks-api.saadisfy.me"
+    - name: WebAppClient
+      value: "https://webapp.saadisfy.me"
+    - name: WebhooksWebClient
+      value: "https://webhooksclient.saadisfy.me"
+  
+  # Image configuration  
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "identity-api"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: &appHost "identity-api.saadisfy.me"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: &appTlsSecret "identity-api-tls"
+        hosts:
+          - *appHost
+
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: false  # Identity API doesn't need Redis
+    rabbitmq:
+      enabled: false  # Identity API doesn't use RabbitMQ
+    postgresql:
+      enabled: true  # Identity API needs PostgreSQL
+      createSecret: true  # This service creates its own PostgreSQL secret
+      secretRefName: "connectionstringpostgresql-identity"  # Override secret name with microservice name
+      auth:
+        database: "identitydb"  # Override database name for this microservice
+
+

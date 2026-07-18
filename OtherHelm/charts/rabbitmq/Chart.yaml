@@ -1,0 +1,10 @@
+apiVersion: v2
+name: rabbitmq
+version: 1.0.0
+description: Shared RabbitMQ EventBus for eShop microservices
+type: application
+appVersion: "3.13.6"
+dependencies:
+  - name: rabbitmq
+    version: "14.6.6"
+    repository: "https://charts.bitnami.com/bitnami"

@@ -1,0 +1,143 @@
+# eShop Umbrella Chart Values
+# This file configures all eShop microservices for deployment
+global:
+  eshop:
+    sharedServices:
+      postgresql: #SecretRefName is set in the child chart locally
+        serviceName: "postgresql"  # Will become {release-name}-postgresql
+        port: &postgres_port "5432"
+        auth:
+          username: &postgres_username "postgres"
+          password: &postgres_password "CHANGEME"
+      
+      rabbitmq:
+        secretRefName: "connectionstringeventbus"
+        serviceName: "rabbitmq"  # Will become {release-name}-rabbitmq
+        port: &rabbitmq_port "5672"  
+        auth:
+          username: &rabbitmq_username "guest"
+          password: &rabbitmq_password "CHANGEME"
+          erlangCookie: &rabbitmq_cookie "secretcookie"
+      
+      redis:
+        secretRefName: "connectionstringredis"
+        serviceName: "redis"  # Will become {release-name}-redis
+        port: &redis_port "6379"  
+        auth:
+          password: &redis_password "CHANGEME"
+    
+
+
+
+
+
+
+
+
+# Core environment variables shared by all services
+envDefaults: &commonEnvDefaults
+  - name: ASPNETCORE_ENVIRONMENT
+    value: "Development"
+  - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+    value: "true"
+  - name: IdentityUrl
+    value: "https://identity-api.saadisfy.me"
+  - name: Logging__LogLevel__Default
+    value: "Information"
+  - name: Logging__LogLevel__Microsoft.AspNetCore
+    value: "Warning"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES
+    value: "true"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES
+    value: "true"
+  - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY
+    value: "in_memory"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://aspire-dashboard:18889"
+
+
+# ================================
+# SHARED INFRASTRUCTURE
+# ================================
+
+# RabbitMQ EventBus (deploy first)
+postgresql:
+  enabled: true
+  postgresql:
+    service:
+      port: *postgres_port
+    auth:
+      username: *postgres_username
+      password: *postgres_password
+
+rabbitmq:
+  enabled: true
+  rabbitmq:
+    service:
+      ports:
+        amqp: *rabbitmq_port
+    auth:
+      username: *rabbitmq_username
+      password: *rabbitmq_password
+      erlangCookie: *rabbitmq_cookie
+
+redis:
+  enabled: true
+  redis:
+    service:
+      port: *redis_port
+    auth:
+      password: *redis_password
+
+# ================================
+# MICROSERVICES
+# ================================
+
+# Core microservices
+identity-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+basket-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+catalog-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+ordering-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+# Background processors
+order-processor:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+payment-processor:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+# Webhook services
+webhooks-api:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+webhook-client:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults
+
+# Frontend
+webapp:
+  enabled: true
+  base:
+    envDefaults: *commonEnvDefaults

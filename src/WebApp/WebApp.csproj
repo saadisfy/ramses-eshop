@@ -5,7 +5,11 @@
     <UserSecretsId>2d86f364-a439-47c5-9468-3b85a7d9a18e</UserSecretsId>
     <Nullable>enable</Nullable>
     <RootNamespace>eShop.WebApp</RootNamespace>
-
+     <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  -->
+    <Version>1.0.0</Version>
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/web-app</ContainerRepository>
+    <ContainerImageTag>1.0.0</ContainerImageTag>
     <!-- Disable RZ10021, which is failing due to a Razor bug, according to Mackinnon. -->
     <NoWarn>$(NoWarn);RZ10021</NoWarn>
   </PropertyGroup>

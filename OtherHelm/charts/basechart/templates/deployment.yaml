@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "application.fullname" . }}
+  labels:
+    {{- include "application.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "application.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "application.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ . }}
+      {{- end }}
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ include "application.serviceAccountName" . }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.application.name }}
+          image: {{ include "application.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.application.ports.httpContainerPort }}
+            - name: https #is defined but not used because TLS termination at Ingress
+              containerPort: {{ .Values.application.ports.httpsContainerPort }}
+          envFrom:
+            # Load environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "application.configMapName" . }}
+          {{- if .Values.sharedServices.redis.enabled }}
+            # Load Redis connection string from secret
+            - secretRef:
+                name: {{ .Values.global.eshop.sharedServices.redis.secretRefName }} # is set globally
+          {{- end }}
+          {{- if .Values.sharedServices.rabbitmq.enabled }}
+            # Load RabbitMQ connection string from secret
+            - secretRef:
+                name: {{ .Values.global.eshop.sharedServices.rabbitmq.secretRefName }}
+          {{- end }}
+          {{- if .Values.sharedServices.postgresql.enabled }}
+            # Load postgresql connection string from secret
+            # Warning: this is only secretname that is not set globally
+            - secretRef:
+                name: {{ .Values.sharedServices.postgresql.secretRefName }}
+          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: 3
+            failureThreshold: 3
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

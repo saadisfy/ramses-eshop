@@ -1,0 +1,82 @@
+# Docker image publish stage jobs
+# This file contains all Docker image publishing jobs that extend the .publish-docker-image template
+
+# Individual service image publishing jobs
+# TESTING MODE: Only Catalog.API is active for step-by-step testing
+
+# docker-publish-apphost:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "apphost"
+#   needs:
+#     - docker-generate-apphost
+
+# docker-publish-basket-api:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "basket-api"
+#   needs:
+#     - docker-generate-basket-api
+
+docker-publish-catalog-api:
+  extends: .publish-docker-image
+  variables:
+    SERVICE_NAME: "catalog-api"
+  needs:
+    - docker-generate-catalog-api
+
+# docker-publish-identity-api:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "identity-api"
+#   needs:
+#     - docker-generate-identity-api
+
+# docker-publish-ordering-api:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "ordering-api"
+#   needs:
+#     - docker-generate-ordering-api
+
+# docker-publish-order-processor:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "order-processor"
+#   needs:
+#     - docker-generate-order-processor
+
+# docker-publish-payment-processor:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "payment-processor"
+#   needs:
+#     - docker-generate-payment-processor
+
+# docker-publish-webhooks-api:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "webhooks-api"
+#   needs:
+#     - docker-generate-webhooks-api
+
+# docker-publish-webapp:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "webapp"
+#   needs:
+#     - docker-generate-webapp
+
+# docker-publish-webhook-client:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "webhook-client"
+#   needs:
+#     - docker-generate-webhook-client
+
+# docker-publish-mobile-bff:
+#   extends: .publish-docker-image
+#   variables:
+#     SERVICE_NAME: "mobile-bff"
+#   needs:
+#     - docker-generate-mobile-bff 

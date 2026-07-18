@@ -1,0 +1,48 @@
+# Order Processor Configuration
+# This chart configures the baseChart for the Order Processor microservice
+
+# need global values from Umbrella chart for shared services
+
+base:
+  # Application configuration
+  application:
+    name: &appName "order-processor"
+    environment: "Development"
+    healthPath: "/health"
+    minReadySeconds: 60
+    ports:
+      httpContainerPort: 8080
+      httpsContainerPort: 8443
+    terminationGracePeriodSeconds: 180
+
+  # Environment variable overrides for this specific service
+  envOverrides:
+    - name: OTEL_SERVICE_NAME
+      value: *appName
+  
+  # Image configuration  
+  image:
+    registry: "ghcr.io/saadisfy/eshop"
+    repository: "order-processor"
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+    pullSecret: "ghcr-secret"
+
+  # Ingress configuration (disabled for background processor)
+  ingress:
+    enabled: false #@cursor: add ingress, even if background processor 
+
+  # Shared services configuration
+  sharedServices:
+    redis:
+      enabled: false  # Order Processor doesn't need Redis
+    rabbitmq:
+      enabled: true  # Order Processor uses RabbitMQ for events
+      subscriptionClientName: "OrderProcessor"  # Override subscription client name
+    postgresql:
+      enabled: true  # Order Processor needs PostgreSQL (shares with ordering-api)
+      createSecret: false  # Don't create secret, just mount existing one from ordering-api
+      secretRefName: "connectionstringpostgresql-ordering"  # Use same secret as ordering-api
+      auth:
+        database: "orderingdb"  # Use same database as ordering-api
+

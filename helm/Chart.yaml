@@ -1,0 +1,71 @@
+apiVersion: v2
+name: eshop
+version: 0.1.0
+description: eShop microservices umbrella chart
+type: application
+appVersion: "1.0.0"
+dependencies:    
+
+  # Shared infrastructure (deploy first)
+  - name: rabbitmq
+    version: "1.0.0"
+    repository: "oci://ghcr.io/saadisfy/eshop"
+    condition: rabbitmq.enabled
+  - name: redis
+    version: "1.0.0"
+    repository: "oci://ghcr.io/saadisfy/eshop"
+    condition: redis.enabled
+  - name: postgresql
+    version: "1.0.0"
+    repository: "oci://ghcr.io/saadisfy/eshop"
+    condition: postgresql.enabled
+
+  # Core microservices
+  - name: identity-api
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/identity-api" #"oci://ghcr.io/saadisfy/eshop"
+    condition: identity-api.enabled
+  - name: basket-api
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/basket-api" #"oci://ghcr.io/saadisfy/eshop"
+    condition: basket-api.enabled
+
+  - name: catalog-api
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/catalog-api" #"oci://ghcr.io/saadisfy/eshop"
+    condition: catalog-api.enabled
+    
+  - name: ordering-api
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/ordering-api" #"oci://ghcr.io/saadisfy/eshop"
+    condition: ordering-api.enabled
+    
+
+    
+  # Background processors
+  - name: order-processor
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/order-processor" #"oci://ghcr.io/saadisfy/eshop"
+    condition: order-processor.enabled
+    
+  - name: payment-processor
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/payment-processor" #"oci://ghcr.io/saadisfy/eshop"
+    condition: payment-processor.enabled
+    
+  # Webhook services
+  - name: webhooks-api
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/webhooks-api" #"oci://ghcr.io/saadisfy/eshop"
+    condition: webhooks-api.enabled
+    
+  - name: webhook-client
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/webhook-client" #"oci://ghcr.io/saadisfy/eshop"
+    condition: webhook-client.enabled
+    
+  # Frontend
+  - name: webapp
+    version: "0.1.0"
+    repository: "file://../OtherHelm/charts/webapp" #"oci://ghcr.io/saadisfy/eshop"
+    condition: webapp.enabled

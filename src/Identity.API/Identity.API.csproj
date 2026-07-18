@@ -1,9 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <UserSecretsId>aspnet-eShopOnContainers.Identity-90487118-103c-4ff0-b9da-e5e26f7ab0c5</UserSecretsId>
+     <!-- Semantic Versioning #todo might not be necessary if containerImageTags is used  --> 
+    <Version>1.0.0</Version>
+    
+    <!-- Container Configuration -->
+    <ContainerRepository>saadisfy/eShop/identity-api</ContainerRepository>
+    <ContainerImageTag>1.0.0</ContainerImageTag>
   </PropertyGroup>
+
 
   <ItemGroup>
     <PackageReference Include="Duende.IdentityServer.AspNetIdentity" />

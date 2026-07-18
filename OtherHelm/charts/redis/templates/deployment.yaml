@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  minReadySeconds: 60
+  replicas: {{ .Values.redis.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "redis.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "redis.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: redis
+        image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+        imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+        args:
+        - -c
+        - redis-server --requirepass $REDIS_PASSWORD
+        command:
+        - /bin/sh
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "redis.fullname" . }}
+              key: redis-password
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.redis.monitoring.otelEndpoint | quote }}
+        - name: OTEL_SERVICE_NAME
+          value: "redis"
+        ports:
+        - containerPort: {{ .Values.redis.service.port }}
+          name: tcp
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+      terminationGracePeriodSeconds: 180
